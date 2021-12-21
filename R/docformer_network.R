@@ -178,38 +178,68 @@ docformer_embeddings <- torch::nn_module(
 )
 pre_norm <- torch::nn_module(
   "pre_norm",
-  initialize = function(){
-
+  initialize = function(dim, fn){
+    self$norm <- torch::nn_layer_norm(dim)
+    self$fn <- fn
   },
-  forward = function() {
-
+  forward = function(x,...) {
+    return(self$fn(self$norm(x)), ...)
   }
 )
 pre_norm_attention <- torch::nn_module(
   "pre_norm_attention",
-  initialize = function(){
-
+  initialize = function(dim, fn){
+    self$norm_t_bar <- torch::nn_layer_norm(dim)
+    self$norm_v_bar <- torch::nn_layer_norm(dim)
+    self$norm_t_bar_s <- torch::nn_layer_norm(dim)
+    self$norm_v_bar_s <- torch::nn_layer_norm(dim)
+    self$fn <- fn
   },
-  forward = function() {
+  forward = function(t_bar, v_bar, t_bar_s, v_bar_s, ...) {
+    return(self$fn(
+      self$norm_t_bar(t_bar),
+      self$norm_v_bar(v_bar),
+      self$norm_t_bar_s(t_bar_s),
+      self$norm_v_bar_s(v_bar_s),
+    ), ...)
 
   }
 )
+
 feed_forward <- torch::nn_module(
   "feed_forward",
-  initialize = function(){
-
+  initialize = function(dim, hidden_dim, dropout=0){
+    self$net <- torch::nn_sequential(
+      torch::nn_linear(dim, hidden_dim),
+      torch::nn_gelu(),
+      torch::nn_dropout(dropout),
+      torch::nn_linear(hidden_dim, dim),
+      torch::nn_dropout(dropout)
+    )
   },
-  forward = function() {
-
+  forward = function(x) {
+    self$net(x)
   }
 )
+
 relative_position <- torch::nn_module(
   "relative_position",
-  initialize = function(){
+  initialize = function(num_units, max_relative_position, max_seq_length){
+    self$num_units <- num_units
+    self$max_relative_position <- max_relative_position
+    self$embeddings_table <- torch::nn_parameter(torch::torch_zeros(c(max_relative_position *2 +1, num_units)))
+    torch::nn_init_xavier_uniform_(self$embeddings_table)
 
+    self$max_length <- max_seq_length
+    range_vec_q  <-  torch::torch_arange(1, max_seq_length)
+    range_vec_k  <-  torch::torch_arange(1, max_seq_length)
+    distance_mat  <-  range_vec_k[NULL, ..] - range_vec_q[.., NULL]
+    distance_mat_clipped  <-  torch::torch_clamp(distance_mat, -self$max_relative_position, self$max_relative_position)
+    final_mat  <-  distance_mat_clipped + self$max_relative_position
+    self$final_mat  <-  final_mat$to(dtype=torch_long())
   },
-  forward = function() {
-
+  forward = function(length_q, length_k) {
+    embeddings  <-  self$embeddings_table[self$final_mat[1:length_q, 1:length_k]]
   }
 )
 
