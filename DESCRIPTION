@@ -2,9 +2,9 @@ Package: docformer
 Type: Package
 Title: Fit 'DocFormer' Models for Classification and Regression
 Version: 0.1.0
-Author@R: c(
+Authors@R: c(
     person(given = "Christophe", family = "Regouby", role = c("aut", "cre"), email = "christophe.regouby@free.fr")
-) 
+    ) 
 Description: Implements the 'DocFormer' model by Srikar Appalaraju & al (2021) <arXiv:2106.11539v2>
     with {torch} and provides a consistent interface for fitting and creating predictions..
 License: MIT + file LICENSE
