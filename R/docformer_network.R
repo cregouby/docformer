@@ -173,7 +173,7 @@ docformer_embeddings <- torch::nn_module(
     v_bar_s <-  x_calculated_embedding_v + y_calculated_embedding_v + self.position_embeddings_v()
     t_bar_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self.position_embeddings_t()
 
-    return(v_bar_s,t_bar_s)
+    return(list(v_bar_s,t_bar_s))
 
   }
 )
@@ -363,59 +363,129 @@ multimodal_attention_layer <- torch::nn_module(
 )
 docformer_encoder <- torch::nn_module(
   "docformer_encoder",
-  initialize = function(){
+  initialize = function(config){
+    self$config <- config
+    hidden_size <- config$hidden_size
+    self$layers <- torch::nn_module_list()
+    for (i in seq(config$num_hidden_layers)){
+      encoder_block <- torch::nn_module_list(
+        pre_norm_attention(hidden_size,
+                    multimodal_attention_layer(hidden_size,
+                                             config$num_attention_heads,
+                                             config$max_relative_positions,
+                                             config$max_position_embeddings,
+                                             config$hidden_dropout_prob,
+                    )
+        ),
+        pre_norm(hidden_size,
+                feed_forward(hidden_size,
+                            hidden_size * config$intermediate_ff_size_factor,
+                            dropout=config$hidden_dropout_prob))
+      )
+    self$layers$append(encoder_block)
+    }
 
   },
-  forward = function() {
+  forward = function(text_feat,  # text feat or output from last encoder block
+                     img_feat,
+                     text_spatial_feat,
+                     img_spatial_feat) {
+    for (encoder_block in self$layers){
+      skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
+      attn <- encoder_block[[1]]
+      ff <- encoder_block[[2]]
+      x <- attn(text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
+      x <- ff(x) + x
+      text_feat <- x
+      }
+    return(x)
 
   }
 )
 
 language_feature_extractor <- torch::nn_module(
   "language_feature_extractor",
-  initialize = function(){
-
+  initialize = function(max_vocab_size, hidden_dim){
+    self$embedding_vector <- torch::nn_embedding(max_vocab_size,hidden_dim)
   },
   forward = function() {
-
+    return(self$embedding_vector(x))
   }
 )
 extract_features <- torch::nn_module(
   "extract_features",
-  initialize = function(){
+  initialize = function(config){
+    self$visual_feature <- resnet_feature_extractor()
+    self$language_feature <- language_feature_extractor(config$vocab_size, config$hidden_size)
+    self$spatial_feature <- docformer_embeddings(config)
 
   },
-  forward = function() {
+  forward = function(encoding) {
+    image <- encoding$resized_scaled_img
+    language <- encoding$input_ids
+    x_feature <- encoding$x_features
+    y_feature <- encoding$y_features
+
+    v_bar <- self$visual_feature(image)
+    t_bar <- self$language_feature(language)
+    v_bar_s_t_bar_s <- self$spatial_feature(x_feature, y_feature)
+    return(list(v_bar, t_bar, v_bar_s_t_bar_s[[1]], v_bar_s_t_bar_s[[2]]))
 
   }
 )
 
 docformer_for_classification <- torch::nn_module(
   "docformer_for_classification",
-  initialize = function(){
+  initialize = function(config, num_classes){
+    self$config <- config
+    self$extract_feature <- extract_features(config)
+    self$encoder <- docformer_encoder(config)
+    self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
+    self$classifier <- torch::nn_linear(hidden_size, num_classes)
 
   },
   forward = function() {
-
+    output <- self$extract_feature(x) %>%
+      self$encoder() %>%
+      self$dropout(output) %>%
+      self$classifier(output)
   }
 )
 
 docformer_for_ir <- torch::nn_module(
   "docformer_for_ir",
-  initialize = function(){
-
+  initialize = function(config,num_classes= 30522){
+    self$config <- config
+    self$extract_feature <- extract_features(config)
+    self$encoder <- docformer_encoder(config)
+    self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
+    self$classifier <- torch::nn_linear(in_features=68, out_features=num_classes)
+    self$decoder <- shallow_decoder()$cuda()
   },
   forward = function() {
+    output <- self$extract_feature(x) %>%
+      self$encoder() %>%
+      self$dropout(output)
+    output_mlm <- self$classifier(output)
+    output_ir <- self$decoder(output)
+    return(list('mlm_labels'=output_mlm,'ir'=output_ir))
 
   }
 )
 
 docformer <- torch::nn_module(
   "docformer",
-  initialize = function(){
+  initialize = function(config){
+    self$config <- config
+    self$extract_feature <- extract_features(config)
+    self$encoder <- docformer_encoder(config)
+    self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
 
   },
   forward = function() {
+    output <- self$extract_feature(x) %>%
+      self$encoder() %>%
+      self$dropout(output)
 
   }
 )
@@ -423,9 +493,40 @@ docformer <- torch::nn_module(
 shallow_decoder <- torch::nn_module(
   "shallow_decoder",
   initialize = function(){
+    self$linear1 <- torch::nn_Linear(in_features = 768, out_features = 512)                        # Making the image to be symmetric
+    self$bn0 <- torch::nn_batch_norm2d(num_features = 1)
+    self$conv1 <- torch::nn_Conv2d(in_channels = 1, out_channels = 3, kernel_size = 3, stride = 1)
+    self$bn1 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv2 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 3, stride = 1)
+    self$bn2 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv3 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 5, stride = 1)
+    self$bn3 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv4 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 5, stride = 2)
+    self$bn4 <- torch::nn_batch_norm2d(num_features = 3)
+
+    self$conv5 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 7)
+    self$bn5 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv6 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 7)
+    self$bn6 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv7 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 7)
+    self$bn7 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv8 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 7)
+    self$bn8 <- torch::nn_batch_norm2d(num_features = 3)
+    self$conv9 <- torch::nn_Conv2d(in_channels = 3, out_channels = 3, kernel_size = 3, stride = 1)
+    self$bn9 <- torch::nn_batch_norm2d(num_features = 3)
 
   },
-  forward = function() {
-
+  forward = function(x) {
+    x$unsqueeze(2) %>%
+      self$linear1() %>% self$bn0() %>% torch::nn_relu() %>%
+      self$conv1()%>% self$bn1() %>% torch::nn_relu() %>%
+      self$conv2()%>% self$bn2() %>% torch::nn_relu() %>%
+      self$conv3()%>% self$bn3() %>% torch::nn_relu() %>%
+      self$conv4()%>% self$bn4() %>% torch::nn_relu() %>%
+      self$conv5()%>% self$bn5() %>% torch::nn_relu() %>%
+      self$conv6()%>% self$bn6() %>% torch::nn_relu() %>%
+      self$conv7()%>% self$bn7() %>% torch::nn_relu() %>%
+      self$conv8()%>% self$bn8() %>% torch::nn_relu() %>%
+      self$conv9()%>% self$bn9() %>% torch::nn_relu()
   }
 )
