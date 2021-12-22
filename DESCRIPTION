@@ -1,11 +1,45 @@
 Package: docformer
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Fit 'DocFormer' Models for Classification and Regression
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author@R: c(
+    person(given = "Christophe", family = "Regouby", role = c("aut", "cre"), email = "christophe.regouby@free.fr")
+) 
+Description: Implements the 'DocFormer' model by Srikar Appalaraju & al (2021) <arXiv:2106.11539v2>
+    with {torch} and provides a consistent interface for fitting and creating predictions..
+License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+URL: https://github.com/cregouby/docformer
+BugReports: https://github.com/cregouby/docformer/issues
+Imports: 
+    torch (>= 0.4.0),
+    hardhat,
+    magrittr,
+    glue,
+    progress,
+    rlang,
+    methods,
+    tibble,
+    coro,
+    vctrs
+Suggests: 
+    testthat,
+    modeldata,
+    recipes,
+    parsnip,
+    dials,
+    withr,
+    knitr,
+    rmarkdown,
+    vip,
+    tidyverse,
+    ggplot2,
+    dplyr,
+    tidyr,
+    purrr,
+    tune,
+    workflows
+VignetteBuilder: knitr
+Config/testthat/edition: 3
