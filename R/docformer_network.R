@@ -6,7 +6,7 @@ positional_encoding <- torch::nn_module(
     self$d_model <- d_model
     position <- torch::torch_arange(start=1, end = max_len)$unsqueeze(2)
     div_term <- torch::torch_exp(torch::torch_arange(1, d_model, 2) * (-log(1e5)/d_model))
-    pe <- torch::torch_zeros(1, max_len, d_model)
+    pe <- torch::torch_zeros(1, max_len, d_model, device = config$device)
     pe[1,,1:N:2] <- torch::torch_sin(position * div_term)
     pe[1,,2:N:2] <- torch::torch_cos(position * div_term)
     self$pe <-  pe
@@ -87,8 +87,9 @@ docformer_embeddings <- torch::nn_module(
     self$y_bottomright_distance_to_prev_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
     self$y_centroid_distance_to_prev_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
 
-    self$layer_norm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
-    self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
+    # unused
+    # self$layer_norm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
+    # self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
 
     self$x_embedding_v <- list(
       self$x_topleft_position_embeddings_v,
@@ -158,10 +159,10 @@ docformer_embeddings <- torch::nn_module(
     hidden_size  <-  self$config$hidden_size
     sub_dim  <-  hidden_size %/% num_feat
 
-    x_calculated_embedding_v  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = x_feature$device)
-    y_calculated_embedding_v  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = x_feature$device)
-    x_calculated_embedding_t  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = x_feature$device)
-    y_calculated_embedding_t  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = x_feature$device)
+    x_calculated_embedding_v  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = config$device)
+    y_calculated_embedding_v  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = config$device)
+    x_calculated_embedding_t  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = config$device)
+    y_calculated_embedding_t  <-  torch::torch_zeros(batch, seq_len, hidden_size, device = config$device)
 
     for (i in seq(num_feat)) {
       x_calculated_embedding_v[.., i * sub_dim] <-  self$x_embedding_v[[i]](x_feature[.., i])
@@ -227,7 +228,7 @@ relative_position <- torch::nn_module(
   initialize = function(num_units, max_relative_position, max_seq_length){
     self$num_units <- num_units
     self$max_relative_position <- max_relative_position
-    self$embeddings_table <- torch::nn_parameter(torch::torch_zeros(c(max_relative_position *2 +1, num_units)))
+    self$embeddings_table <- torch::nn_parameter(torch::torch_zeros(c(max_relative_position *2 +1, num_units), device=config$device))
     torch::nn_init_xavier_uniform_(self$embeddings_table)
 
     self$max_length <- max_seq_length
@@ -245,11 +246,119 @@ relative_position <- torch::nn_module(
 
 multimodal_attention_layer <- torch::nn_module(
   "multimodal_attention_layer",
-  initialize = function(){
+  initialize = function(embed_dim, n_heads, max_relative_position, max_seq_length, dropout){
+    stopifnot("Error: `embed_dim` is not multiple of `n_head` which prevent initialization of the multimodal_attention_layer" = embed_dim %% n_heads ==0)
+
+    self$embed_dim <- embed_dim
+    self$n_heads <- n_heads
+    self$head_dim <- head_dim %/% n_heads
+
+    self$relative_positions_text  <-  relative_position(self$head_dim, max_relative_position, max_seq_length)
+    self$relative_positions_img <- relative_position(self$head_dim, max_relative_position, max_seq_length)
+
+    # text qkv embeddings
+    self$fc_k_text <- torch::nn_linear(embed_dim, embed_dim)
+    self$fc_q_text <- torch::nn_linear(embed_dim, embed_dim)
+    self$fc_v_text <- torch::nn_linear(embed_dim, embed_dim)
+
+    # image qkv embeddings
+    self$fc_k_img <- torch::nn_linear(embed_dim, embed_dim)
+    self$fc_q_img <- torch::nn_linear(embed_dim, embed_dim)
+    self$fc_v_img <- torch::nn_linear(embed_dim, embed_dim)
+
+    # spatial qk embeddings (shared for visual and text)
+    self$fc_k_spatial <- torch::nn_linear(embed_dim, embed_dim)
+    self$fc_q_spatial <- torch::nn_linear(embed_dim, embed_dim)
+
+    self$softmax_dropout <- torch::nn_sequential(
+      torch::torch_softmax(dim=-1),
+      torch::nn_dropout(dropout)
+    )
+
+    self$to_out <- torch::nn_sequential(
+      torch::nn_linear(embed_dim, embed_dim),
+      torch::nn_dropout(dropout)
+    )
+    self$scale <- torch::torch_sqrt(torch::torch_tensor(embed_dim, device = config$device))
+
 
   },
-  forward = function() {
+  forward = function(text_feat, img_feat, text_spatial_feat, img_spatial_feat) {
+    seq_length <- text_feat$shape[2]
 
+    # self attention of text
+    # b -> batch, t -> time steps (l -> length has same meaning), head -> # of heads, k -> head dim.
+    # 'b t (head k) -> head b t k'
+    key_text_nh_bthk <- self$fc_k_text(text_feat)$unsqueeze(4)
+    dim <- key_text_nh_bthk$shape
+    key_text_nh <- key_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+    # 'b l (head k) -> head b l k'
+    query_text_nh_blhk <- self$fc_q_text(text_feat)$unsqueeze(4)
+    dim <- query_text_nh_blhk$shape
+    query_text_nh <- query_text_nh_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+    # 'b t (head k) -> head b t k'
+    value_text_nh_bthk <- self$fc_v_text(text_feat)$unsqueeze(4)
+    dim <- value_text_nh_bthk$shape
+    value_text_nh <- value_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+
+    dots_text <- torch::torch_einsum('hblk,hbtk->hblt', list(query_text_nh, key_text_nh)) / self$scale
+
+    # 1D relative positions (query, key)
+    rel_pos_embed_text <- self$relative_positions_text(seq_length, seq_length)
+    rel_pos_key_text <- torch::torch_einsum('bhrd,lrd->bhlr', list(key_text_nh, rel_pos_embed_text))
+    rel_pos_query_text <- torch::torch_einsum('bhld,lrd->bhlr', list(query_text_nh, rel_pos_embed_text))
+
+    # shared spatial <-> text hidden features
+    key_spatial_text <- self$fc_k_spatial(text_spatial_feat)$unsqueeze(4)
+    dim <- key_spatial_text$shape
+    key_spatial_text_nh <- key_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    query_spatial_text <- self$fc_q_spatial(text_spatial_feat)$unsqueeze(4)
+    dim <- query_spatial_text$shape
+    query_spatial_text_nh <- query_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))  # 'b l (head k) -> head b l k'
+    dots_text_spatial <- torch::torch_einsum('hblk,hbtk->hblt', list(query_spatial_text_nh, key_spatial_text_nh)) / self$scale
+
+    # Line 38 of pseudo-code
+    text_attn_scores <- dots_text + rel_pos_key_text + rel_pos_query_text + dots_text_spatial
+
+    # self-attention of image
+    key_img_bthk <- self$fc_k_img(img_feat)$unsqueeze(4)
+    dim <- key_img_bthk$shape
+    key_img_nh <- key_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    query_img_blhk <- self$fc_q_img(img_feat)$unsqueeze(4)
+    dim <- query_img_blhk$shape
+    query_img_nh <- query_img_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b l (head k) -> head b l k'
+    value_img_bthk <- self$fc_v_img(img_feat)$unsqueeze(4) # 'b t (head k) -> head b t k'
+    dim <- value_img_bthk$shape
+    value_img_nh <- value_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    dots_img <- torch::torch_einsum('hblk,hbtk->hblt', list(query_img_nh, key_img_nh)) / self$scale
+
+    # 1D relative positions (query, key)
+    rel_pos_embed_img <- self$relative_positions_img(seq_length, seq_length)
+    rel_pos_key_img <- torch::torch_einsum('bhrd,lrd->bhlr', list(key_img_nh, rel_pos_embed_text))
+    rel_pos_query_img <- torch::torch_einsum('bhld,lrd->bhlr', list(query_img_nh, rel_pos_embed_text))
+
+    # shared spatial <-> image features
+    key_spatial_img <- self$fc_k_spatial(img_spatial_feat)$unsqueeze(4)
+    dim <- key_spatial_img$shape
+    key_spatial_img_nh <- key_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    query_spatial_img <- self$fc_q_spatial(img_spatial_feat)$unsqueeze(4)
+    dim <- query_spatial_img$shape
+    query_spatial_img_nh <- query_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b l (head k) -> head b l k'
+    dots_img_spatial <- torch::torch_einsum('hblk,hbtk->hblt', list(query_spatial_img_nh, key_spatial_img_nh)) / self$scale
+
+    # Line 59 of pseudo-code
+    img_attn_scores <- dots_img + rel_pos_key_img + rel_pos_query_img + dots_img_spatial
+
+    text_attn_probs <- self$softmax_dropout(text_attn_scores)
+    img_attn_probs <- self$softmax_dropout(img_attn_scores)
+
+    text_context <- torch::torch_einsum('hblt,hbtv->hblv', list(text_attn_probs, value_text_nh))
+    img_context <- torch::torch_einsum('hblt,hbtv->hblv', list(img_attn_probs, value_img_nh))
+
+    context <- text_context + img_context
+    dim <- context$shape
+    embeddings <- context$flip(c(1,2,3,4), c(2,3,1,4))$reshape(c(dim[1], dim[2], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
+    return(self$to_out(embeddings))
   }
 )
 docformer_encoder <- torch::nn_module(
