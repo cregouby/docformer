@@ -26,24 +26,25 @@
 #' @export
 #'
 #' @examples
-docformer_config <- function(    coordinate_size = 96L,
-                                 shape_size = 96L,
-                                 hidden_dropout_prob = 0.1,
-                                 hidden_size = 768L,
-                                 image_feature_pool_shape = c(7, 7, 256),
-                                 intermediate_ff_size_factor = 3L,  # default ought to be 4
-                                 max_2d_position_embeddings = 1024L,
-                                 max_position_embeddings = 512L,
-                                 max_relative_positions = 8L,
-                                 num_attention_heads = 12L,
-                                 num_hidden_layers = 12L,
-                                 pad_token_id = 1L,
-                                 vocab_size = 30522L,
-                                 layer_norm_eps = 1e-12,
-                                 batch_size = 9L,
-                                 pretraining_ratio = 0.5,
-                                 verbose = FALSE,
-                                 device = "auto"
+#' config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, verbose=TRUE)
+docformer_config <- function(coordinate_size = 96L,
+                             shape_size = 96L,
+                             hidden_dropout_prob = 0.1,
+                             hidden_size = 768L,
+                             image_feature_pool_shape = c(7, 7, 256),
+                             intermediate_ff_size_factor = 3L,  # default ought to be 4
+                             max_2d_position_embeddings = 1024L,
+                             max_position_embeddings = 512L,
+                             max_relative_positions = 8L,
+                             num_attention_heads = 12L,
+                             num_hidden_layers = 12L,
+                             pad_token_id = 1L,
+                             vocab_size = 30522L,
+                             layer_norm_eps = 1e-12,
+                             batch_size = 9L,
+                             pretraining_ratio = 0.5,
+                             verbose = FALSE,
+                             device = "auto"
 ) {
   list(
     coordinate_size = coordinate_size,
