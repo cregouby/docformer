@@ -7,14 +7,14 @@ docformer_mlm <- torch::nn_module(
   },
   forward = function(x) {
     self$docformer(x)
-  }
+  },
   training_step = function(batch,batch_idx) {
     logits  <-  self$forward(batch)
     criterion  <-  torch::nn_cross_entropy_loss()
     loss  <-  criterion(logits$transpose(2,1), batch["mlm_labels"]$long())
     self$log("train_loss",loss,prog_bar = True)
 
-  }
+  },
   validation_step = function(batch,batch_idx) {
     logits  <-  self$forward(batch)
     criterion <- torch$nn$CrossEntropyLoss()
@@ -23,7 +23,7 @@ docformer_mlm <- torch::nn_module(
     val_acc <- torch$tensor(val_acc)
     self$log("val_loss", loss, prog_bar=True)
     self$log("val_acc", val_acc, prog_bar=True)
-  }
+  },
   configure_optinizer = function() {
     torch::optim_adam(self$parameters(), lr=self$hparams["lr"])
   }

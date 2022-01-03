@@ -26,9 +26,14 @@ DocFormer uses text, vision and spatial features and combines them using a novel
 
 You can install the development version of docformer like so:
 
-``` r
+```{r}
 # install.packages("remotes")
-remotes::install_github("mlverse/docformer")
+remotes::install_github("cregouby/docformer")
+```
+
+docformer relies on the `{sentencepiece}` package for tokenization prerequisites
+```{r}
+remotes::install_github("bnosac/sentencepiece")
 ```
 
 ## Example
@@ -38,6 +43,7 @@ remotes::install_github("mlverse/docformer")
 This is a basic example which shows you how to solve a common problem:
 
 ```{r example}
+library(sentencepiece)
 library(docformer)
 ## basic example code
 ```

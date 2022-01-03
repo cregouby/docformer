@@ -8,7 +8,7 @@
 
 {docformer} is an implementation of [DocFormer: End-to-End Transformer
 for Document Understanding](https://arxiv.org/abs/2106.11539) relying on
-[torch fro R](https://torch.mlverse.org/resources/) providing a
+[torch for R](https://torch.mlverse.org/resources/) providing a
 multi-modal transformer based architecture for the task of Visual
 Document Understanding (VDU) 📄📄📄, as a port of
 [shabie/docformer](https://github.com/shabie/docformer) code.
@@ -29,7 +29,28 @@ You can install the development version of docformer like so:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("mlverse/docformer")
+remotes::install_github("cregouby/docformer")
+#> Downloading GitHub repo cregouby/docformer@HEAD
+#> 
+#> * checking for file ‘/tmp/RtmpK3Ue2v/remotes60cec24f48489/cregouby-docformer-268fb54/DESCRIPTION’ ... OK
+#> * preparing ‘docformer’:
+#> * checking DESCRIPTION meta-information ... OK
+#> * checking for LF line-endings in source and make files and shell scripts
+#> * checking for empty or unneeded directories
+#> * building ‘docformer_0.1.0.tar.gz’
+#> Installation du package dans '/home/home/creg/R/x86_64-pc-linux-gnu-library/4.1'
+#> (car 'lib' n'est pas spécifié)
+#> Warning in i.p(...): installation of package '/tmp/RtmpK3Ue2v/file60cec54274cde/
+#> docformer_0.1.0.tar.gz' had non-zero exit status
+```
+
+docformer relies on the `{sentencepiece}` package for tokenization
+prerequisites
+
+``` r
+remotes::install_github("bnosac/sentencepiece")
+#> Skipping install of 'sentencepiece' from a github remote, the SHA1 (712f7235) has not changed since last install.
+#>   Use `force = TRUE` to force installation
 ```
 
 ## Example
@@ -41,6 +62,7 @@ superimposed color: red for title, blue for question, green for answer
 This is a basic example which shows you how to solve a common problem:
 
 ``` r
-#library(docformer)
+library(sentencepiece)
+library(docformer)
 ## basic example code
 ```

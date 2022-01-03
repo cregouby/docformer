@@ -25,7 +25,7 @@ Imports:
     coro,
     vctrs
 Suggests: 
-    testthat,
+    testthat (>= 3.0.0),
     modeldata,
     recipes,
     parsnip,
@@ -33,6 +33,7 @@ Suggests:
     withr,
     knitr,
     rmarkdown,
+    sentencepiece,
     vip,
     tidyverse,
     ggplot2,
