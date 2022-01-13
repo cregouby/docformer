@@ -36,7 +36,7 @@ resnet_feature_extractor <- torch::nn_module(
       self$relu1 %>%
       torch::torch_reshape(c(x$size(1:2), -1)) %>% # "b e w h -> b e (w.h)" batch, embedding, w, h
       self$linear1 %>%
-      torch::torch_flip(c(2,3)) # "b e s -> b s e", batch, embedding, sequence
+      torch::torch_movedim(c(2,3)) # "b e s -> b s e", batch, embedding, sequence
   }
 )
 docformer_embeddings <- torch::nn_module(
@@ -291,15 +291,15 @@ multimodal_attention_layer <- torch::nn_module(
     # 'b t (head k) -> head b t k'
     key_text_nh_bthk <- self$fc_k_text(text_feat)$unsqueeze(4)
     dim <- key_text_nh_bthk$shape
-    key_text_nh <- key_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+    key_text_nh <- key_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4))
     # 'b l (head k) -> head b l k'
     query_text_nh_blhk <- self$fc_q_text(text_feat)$unsqueeze(4)
     dim <- query_text_nh_blhk$shape
-    query_text_nh <- query_text_nh_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+    query_text_nh <- query_text_nh_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4))
     # 'b t (head k) -> head b t k'
     value_text_nh_bthk <- self$fc_v_text(text_feat)$unsqueeze(4)
     dim <- value_text_nh_bthk$shape
-    value_text_nh <- value_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))
+    value_text_nh <- value_text_nh_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4))
 
     dots_text <- torch::torch_einsum('hblk,hbtk->hblt', list(query_text_nh, key_text_nh)) / self$scale
 
@@ -311,10 +311,10 @@ multimodal_attention_layer <- torch::nn_module(
     # shared spatial <-> text hidden features
     key_spatial_text <- self$fc_k_spatial(text_spatial_feat)$unsqueeze(4)
     dim <- key_spatial_text$shape
-    key_spatial_text_nh <- key_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    key_spatial_text_nh <- key_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b t (head k) -> head b t k'
     query_spatial_text <- self$fc_q_spatial(text_spatial_feat)$unsqueeze(4)
     dim <- query_spatial_text$shape
-    query_spatial_text_nh <- query_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4))  # 'b l (head k) -> head b l k'
+    query_spatial_text_nh <- query_spatial_text$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4))  # 'b l (head k) -> head b l k'
     dots_text_spatial <- torch::torch_einsum('hblk,hbtk->hblt', list(query_spatial_text_nh, key_spatial_text_nh)) / self$scale
 
     # Line 38 of pseudo-code
@@ -323,13 +323,13 @@ multimodal_attention_layer <- torch::nn_module(
     # self-attention of image
     key_img_bthk <- self$fc_k_img(img_feat)$unsqueeze(4)
     dim <- key_img_bthk$shape
-    key_img_nh <- key_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    key_img_nh <- key_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b t (head k) -> head b t k'
     query_img_blhk <- self$fc_q_img(img_feat)$unsqueeze(4)
     dim <- query_img_blhk$shape
-    query_img_nh <- query_img_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b l (head k) -> head b l k'
+    query_img_nh <- query_img_blhk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b l (head k) -> head b l k'
     value_img_bthk <- self$fc_v_img(img_feat)$unsqueeze(4) # 'b t (head k) -> head b t k'
     dim <- value_img_bthk$shape
-    value_img_nh <- value_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    value_img_nh <- value_img_bthk$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b t (head k) -> head b t k'
     dots_img <- torch::torch_einsum('hblk,hbtk->hblt', list(query_img_nh, key_img_nh)) / self$scale
 
     # 1D relative positions (query, key)
@@ -340,10 +340,10 @@ multimodal_attention_layer <- torch::nn_module(
     # shared spatial <-> image features
     key_spatial_img <- self$fc_k_spatial(img_spatial_feat)$unsqueeze(4)
     dim <- key_spatial_img$shape
-    key_spatial_img_nh <- key_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b t (head k) -> head b t k'
+    key_spatial_img_nh <- key_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b t (head k) -> head b t k'
     query_spatial_img <- self$fc_q_spatial(img_spatial_feat)$unsqueeze(4)
     dim <- query_spatial_img$shape
-    query_spatial_img_nh <- query_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$flip(c(1,2,3,4), c(3,1,2,4)) # 'b l (head k) -> head b l k'
+    query_spatial_img_nh <- query_spatial_img$reshape(c(dim[1], dim[2], self$n_heads, -1))$permute(c(3,1,2,4)) # 'b l (head k) -> head b l k'
     dots_img_spatial <- torch::torch_einsum('hblk,hbtk->hblt', list(query_spatial_img_nh, key_spatial_img_nh)) / self$scale
 
     # Line 59 of pseudo-code
@@ -357,7 +357,7 @@ multimodal_attention_layer <- torch::nn_module(
 
     context <- text_context + img_context
     dim <- context$shape
-    embeddings <- context$flip(c(1,2,3,4), c(2,3,1,4))$reshape(c(dim[1], dim[2], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
+    embeddings <- context$permute(c(2,3,1,4))$reshape(c(dim[1], dim[2], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
     return(self$to_out(embeddings))
   }
 )
