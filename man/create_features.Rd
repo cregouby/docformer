@@ -19,8 +19,8 @@ create_features(
 \arguments{
 \item{image}{file path, url, or raw vector to image (png, tiff, jpeg, etc)}
 
-\item{tokenizer}{tokenizer function to apply to words extracted from image. Currently, only
-hftokenizer tokenizer is supported.}
+\item{tokenizer}{tokenizer function to apply to words extracted from image. Currently,
+{hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.}
 
 \item{add_batch_dim}{(boolean) add a extra dimension to tensor for batch encoding}
 

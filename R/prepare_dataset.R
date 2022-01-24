@@ -54,8 +54,8 @@ apply_ocr <- function(image) {
 #' Turn image into docformer torch tensor input feature
 #'
 #' @param image file path, url, or raw vector to image (png, tiff, jpeg, etc)
-#' @param tokenizer tokenizer function to apply to words extracted from image. Currently, only
-#'   hftokenizer tokenizer is supported.
+#' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
+#'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
 #' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
@@ -86,7 +86,7 @@ create_features <- function(image,
   resized_image <- image_resize(original_image, geometry=target_geometry)
 
   # step 3 extract text throuhg OCR and normalize bbox to 1000x1000
-  entries <- apply_ocr(original_image) %>%
+  encoding <- apply_ocr(original_image) %>%
     mutate(xmin = round(xmin/w_h$width * 1000),
            ymin= round(ymin/w_h$height * 1000),
            xmax = round(xmax/w_h$width * 1000),
@@ -94,14 +94,38 @@ create_features <- function(image,
     )
 
   # step 4 tokenize words and get their bbox
-  ## case hftokenizer
-  if (inherits(tokenizer, c("tokenizer", "R6"))) {
-    entries <- entries %>%
-      mutate(idx = map(entries$word, ~tokenizer$encode(.x)$ids))
-  } else {
-    rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
-  }
-
+  case_when(
+    # hftokenizer
+    inherits(tok, c("tokenizer", "R6")) ~ {
+      cls_id <- tok$encode("[CLS]")
+      pad_id <- tok$encode("[PAD]")
+      mask_id <- tok$encode("[MASK]")
+      sep_id <- tok$encode("[SEP]")
+      encoding <- encoding %>%
+        mutate(idx = map(encoding$word, ~tok$encode(.x)$ids))
+    },
+    #tokenizer.bpe
+    inherits(tok, "youtokentome") ~ {
+      tok_voc <- tok$vocabulary
+      cls_id <- tok_voc$id[which(tok_voc$subword=="<BOS>")]
+      pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
+      # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
+      sep_id <- tok_voc$id[which(tok_voc$subword=="<EOS>")]
+      encoding <- encoding %>%
+        mutate(idx = map(encoding$word, ~bpe_encode(tok,.x, type="ids")))
+    },
+    #sentencepiece
+    inherits(tok, "sentencepiece") ~ {
+      tok_voc <- tok$vocabulary
+      cls_id <- tok_voc$id[which(tok_voc$subword=="<s>")]
+      # pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
+      # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
+      sep_id <- tok_voc$id[which(tok_voc$subword=="</s>")]
+      encoding <- encoding %>%
+        mutate(idx = map(encoding$word, ~sentencepiece_encode(tok,.x, type="ids")))
+    },
+    TRUE ~  rlang::abort(paste0(tok," is not recognized as a supported tokenizer"))
+  )
   # token_boxes, unnormalized_token_boxes = get_tokens_with_boxes(unnormalized_word_boxes,
   #                                                               normalized_word_boxes,
   #                                                               PAD_TOKEN_BOX,
