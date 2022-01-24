@@ -34,7 +34,7 @@ remotes::install_github("cregouby/docformer")
 
 docformer currently supports the `{hftokenizer}` package for tokenization prerequisites
 ```{r}
-remotes::install_github("mlverse/hftokenizer")
+remotes::install_github("mlverse/hftokenizers")
 ```
 
 ## Example
