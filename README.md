@@ -21,7 +21,8 @@ embeddings across modalities which makes it easy for the model to
 correlate text to visual tokens and vice versa. DocFormer is evaluated
 on 4 different datasets each with strong baselines. DocFormer achieves
 state-of-the-art results on all of them, sometimes beating models 4x
-larger in no. of parameters.
+larger in no. of parameters. ![High-level
+design](vignettes/Simplistic_design)
 
 ## Installation
 
@@ -31,8 +32,12 @@ You can install the development version of docformer like so:
 # install.packages("remotes")
 remotes::install_github("cregouby/docformer")
 #> Downloading GitHub repo cregouby/docformer@HEAD
-#> 
-#> * checking for file ‘/tmp/RtmpK3Ue2v/remotes60cec24f48489/cregouby-docformer-268fb54/DESCRIPTION’ ... OK
+#> glue (1.6.0 -> 1.6.1) [CRAN]
+#> cli  (3.1.0 -> 3.1.1) [CRAN]
+#> Installing 2 packages: glue, cli
+#> Installation des packages dans '/home/home/creg/R/x86_64-pc-linux-gnu-library/4.1'
+#> (car 'lib' n'est pas spécifié)
+#> * checking for file ‘/tmp/RtmpgDSW8k/remotes5bc885f487e2a/cregouby-docformer-58b3f1c/DESCRIPTION’ ... OK
 #> * preparing ‘docformer’:
 #> * checking DESCRIPTION meta-information ... OK
 #> * checking for LF line-endings in source and make files and shell scripts
@@ -40,8 +45,6 @@ remotes::install_github("cregouby/docformer")
 #> * building ‘docformer_0.1.0.tar.gz’
 #> Installation du package dans '/home/home/creg/R/x86_64-pc-linux-gnu-library/4.1'
 #> (car 'lib' n'est pas spécifié)
-#> Warning in i.p(...): installation of package '/tmp/RtmpK3Ue2v/file60cec54274cde/
-#> docformer_0.1.0.tar.gz' had non-zero exit status
 ```
 
 docformer relies on the `{sentencepiece}` package for tokenization

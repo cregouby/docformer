@@ -21,6 +21,7 @@ knitr::opts_chunk$set(
 {docformer} is an implementation of [DocFormer: End-to-End Transformer for Document Understanding](https://arxiv.org/abs/2106.11539) relying on [torch for R](https://torch.mlverse.org/resources/) providing a multi-modal transformer based architecture for the task of Visual Document Understanding (VDU) 📄📄📄, as a port of [shabie/docformer](https://github.com/shabie/docformer) code.
 
 DocFormer uses text, vision and spatial features and combines them using a novel multi-modal self-attention layer. DocFormer can be pre-trained in an unsupervised fashion using carefully designed tasks which encourage multi-modal interaction. DocFormer also shares learned spatial embeddings across modalities which makes it easy for the model to correlate text to visual tokens and vice versa. DocFormer is evaluated on 4 different datasets each with strong baselines. DocFormer achieves state-of-the-art results on all of them, sometimes beating models 4x larger in no. of parameters.
+![High-level Neural Netword design with building-blocks around the Docformer Multi-Modal transformer \label{High-level design}](man/figure/Simplistic_design.jpg)
 
 ## Installation
 
@@ -31,9 +32,9 @@ You can install the development version of docformer like so:
 remotes::install_github("cregouby/docformer")
 ```
 
-docformer relies on the `{sentencepiece}` package for tokenization prerequisites
+docformer currently supports the `{hftokenizer}` package for tokenization prerequisites
 ```{r}
-remotes::install_github("bnosac/sentencepiece")
+remotes::install_github("mlverse/hftokenizer")
 ```
 
 ## Example
