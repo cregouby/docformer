@@ -68,7 +68,7 @@ apply_ocr <- function(image) {
 #' @export
 #'
 #' @examples
-create_features <- function(image,
+create_features_from_image <- function(image,
                             tokenizer,
                             add_batch_dim=TRUE,
                             target_geometry="224x224",
@@ -96,35 +96,35 @@ create_features <- function(image,
   # step 4 tokenize words and get their bbox
   case_when(
     # hftokenizer
-    inherits(tok, c("tokenizer", "R6")) ~ {
-      cls_id <- tok$encode("[CLS]")
-      pad_id <- tok$encode("[PAD]")
-      mask_id <- tok$encode("[MASK]")
-      sep_id <- tok$encode("[SEP]")
+    inherits(tokenizer, c("tokenizer", "R6")) ~ {
+      cls_id <- tokenizer$encode("[CLS]")
+      pad_id <- tokenizer$encode("[PAD]")
+      mask_id <- tokenizer$encode("[MASK]")
+      sep_id <- tokenizer$encode("[SEP]")
       encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~tok$encode(.x)$ids))
+        mutate(idx = map(encoding$word, ~tokenizer$encode(.x)$ids))
     },
     #tokenizer.bpe
-    inherits(tok, "youtokentome") ~ {
-      tok_voc <- tok$vocabulary
+    inherits(tokenizer, "youtokentome") ~ {
+      tok_voc <- tokenizer$vocabulary
       cls_id <- tok_voc$id[which(tok_voc$subword=="<BOS>")]
       pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
       # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
       sep_id <- tok_voc$id[which(tok_voc$subword=="<EOS>")]
       encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~bpe_encode(tok,.x, type="ids")))
+        mutate(idx = map(encoding$word, ~bpe_encode(tokenizer,.x, type="ids")))
     },
     #sentencepiece
-    inherits(tok, "sentencepiece") ~ {
-      tok_voc <- tok$vocabulary
+    inherits(tokenizer, "sentencepiece") ~ {
+      tok_voc <- tokenizer$vocabulary
       cls_id <- tok_voc$id[which(tok_voc$subword=="<s>")]
       # pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
       # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
       sep_id <- tok_voc$id[which(tok_voc$subword=="</s>")]
       encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~sentencepiece_encode(tok,.x, type="ids")))
+        mutate(idx = map(encoding$word, ~sentencepiece_encode(tokenizer,.x, type="ids")))
     },
-    TRUE ~  rlang::abort(paste0(tok," is not recognized as a supported tokenizer"))
+    TRUE ~  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
   )
   # token_boxes, unnormalized_token_boxes = get_tokens_with_boxes(unnormalized_word_boxes,
   #                                                               normalized_word_boxes,
@@ -132,4 +132,31 @@ create_features <- function(image,
   #                                                               encoding.word_ids())
   #
   token_bbox
+}
+#' Turn document into docformer torch tensor input feature
+#'
+#' @param doc file path, url, or raw vector to document (currently pdf only)
+#' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
+#'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
+#' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
+#' @param target_geometry image target magik geometry expected by the image model input
+#' @param max_seq_len size of the embedding vector in tokens
+#' @param save_to_disk (boolean) shall we save the result onto disk
+#' @param path_to_save result path
+#' @param apply_mask_for_mlm add mask to the language model
+#' @param extras_for_debugging additionnal feature for debugging purposes
+#'
+#' @return
+#' @export
+#'
+#' @examples
+create_features_from_doc <- function(doc,
+                                        tokenizer,
+                                        add_batch_dim=TRUE,
+                                        target_geometry="224x224",
+                                        max_seq_len=512,
+                                        save_to_disk=FALSE,
+                                        path_to_save=NULL,
+                                        apply_mask_for_mlm=FALSE,
+                                        extras_for_debugging=FALSE) {
 }
