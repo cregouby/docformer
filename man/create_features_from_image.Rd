@@ -13,7 +13,7 @@ create_features_from_image(
   save_to_disk = FALSE,
   path_to_save = NULL,
   apply_mask_for_mlm = FALSE,
-  extras_for_debugging = FALSE
+  debugging = FALSE
 )
 }
 \arguments{
@@ -34,7 +34,7 @@ create_features_from_image(
 
 \item{apply_mask_for_mlm}{add mask to the language model}
 
-\item{extras_for_debugging}{additionnal feature for debugging purposes}
+\item{debugging}{additionnal feature for debugging purposes}
 }
 \value{
 

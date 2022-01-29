@@ -72,14 +72,32 @@ apply_ocr <- function(image) {
 .tokenize.youtokentome <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids"))
   idx[[1]] <- idx[[1]] %>%
-    purrr::prepend(tokenizer$vocabulary$id[which(tokenizer$vocabulary$subword=="<BOS>")])
+    purrr::prepend(tokenizers.bpe::bpe_encode(tokenizer,"<BOS>", type="ids"))
   return(idx)
 }
 .tokenize.sentencepiece <- function(tokenizer, x) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids"))
   idx[[1]] <- idx[[1]] %>%
-    purrr::prepend(tokenizer$vocabulary$id[which(tokenizer$vocabulary$subword=="<s>")])
+    purrr::prepend(sentencepiece::sentencepiece_encode(tokenizer, "<s>", type="ids"))
+  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
+}
+
+.mask_id <- function(tokenizer) {
+  UseMethod(".mask_id")
+}
+.mask_id.default <- function(tokenizer ) {
+  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
+}
+.mask_id.tokenizer <- function(tokenizer) {
+  return(tokenizer$encode("[MASK]")$ids)
+}
+.mask_id.youtokentome <- function(tokenizer) {
+  return(tokenizers.bpe::bpe_encode(tokenizer,"<MASK>", type="ids"))
+}
+.mask_id.sentencepiece <- function(tokenizer) {
+  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
+  return(sentencepiece::sentencepiece_encode(tokenizer, "<mask>", type="ids"))
 }
 
 #' Turn image into docformer torch tensor input feature
@@ -93,7 +111,7 @@ apply_ocr <- function(image) {
 #' @param save_to_disk (boolean) shall we save the result onto disk
 #' @param path_to_save result path
 #' @param apply_mask_for_mlm add mask to the language model
-#' @param extras_for_debugging additionnal feature for debugging purposes
+#' @param debugging additionnal feature for debugging purposes
 #'
 #' @return
 #' @export
@@ -107,7 +125,7 @@ create_features_from_image <- function(image,
                             save_to_disk=FALSE,
                             path_to_save=NULL,
                             apply_mask_for_mlm=FALSE,
-                            extras_for_debugging=FALSE) {
+                            debugging=FALSE) {
 
   # step 0 prepare utilities datasets
   mask_for_mlm <- if (apply_mask_for_mlm) {
@@ -115,19 +133,21 @@ create_features_from_image <- function(image,
   } else {
     rep(TRUE, max_seq_len)
   }
+  mask_id <- .mask_id(tokenizer)
   empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
                            ymin = rep(0,max_seq_len),
                            xmax = rep(0,max_seq_len),
                            ymax = rep(0,max_seq_len),
+                           word = NA_character_,
                            idx = list(0),
                            prior=TRUE)
 
   # step 1 read images and its attributes
-  original_image <- image_read(image)
-  w_h <- image_info(original_image)
+  original_image <- magick::image_read(image)
+  w_h <- magick::image_info(original_image)
 
   # step 2: resize image
-  resized_image <- image_resize(original_image, geometry=target_geometry)
+  resized_image <- magick::image_resize(original_image, geometry=target_geometry)
 
   # step 3 extract text throuhg OCR and normalize bbox to 1000x1000
   encoding <- apply_ocr(original_image) %>%
@@ -137,7 +157,7 @@ create_features_from_image <- function(image,
            ymax= round(ymax/w_h$height * 1000),
     # step 4 tokenize words into `idx` and get their bbox
            idx = .tokenize(tokenizer, word)) %>%
-    dplyr::select(-word, -confidence) %>%
+    dplyr::select(-confidence) %>%
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
@@ -146,8 +166,15 @@ create_features_from_image <- function(image,
   encoding_long <- encoding  %>%
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
-    dplyr::slice_head(n=max_seq_len)
+    dplyr::slice_head(n=max_seq_len) %>%
     # step 6: (nill here)
+    # step 7: apply mask for the sake of pre-training
+    mutate(idx = ifelse(prior, idx, mask_id))
+    # step 8 normlize the image
+
+  encoding_tt <- torch::torch_stack(
+    encoding = torch::torch_tensor(encoding)
+  )
 
 }
 #' Turn document into docformer torch tensor input feature
