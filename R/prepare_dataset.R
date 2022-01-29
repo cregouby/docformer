@@ -51,6 +51,37 @@ apply_ocr <- function(image) {
   return(ocr_df)
 }
 
+#' tokenize the character vector and prepend the \[CLS\] token to first
+#'
+#' @param tokenizer the tokenizer function
+#' @param x character vector to encode
+#' @param ...  unused
+#'
+#' @return list of token ids for each token
+.tokenize <- function(tokenizer, ...) {
+  UseMethod(".tokenize")
+}
+.tokenize.default <- function(tokenizer, x ) {
+  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
+}
+.tokenize.tokenizer <- function(tokenizer, x) {
+  idx <- purrr::map(x,~tokenizer$encode(.x)$ids)
+  idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
+  return(idx)
+}
+.tokenize.youtokentome <- function(tokenizer, x) {
+  idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids"))
+  idx[[1]] <- idx[[1]] %>%
+    purrr::prepend(tokenizer$vocabulary$id[which(tokenizer$vocabulary$subword=="<BOS>")])
+  return(idx)
+}
+.tokenize.sentencepiece <- function(tokenizer, x) {
+  idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids"))
+  idx[[1]] <- idx[[1]] %>%
+    purrr::prepend(tokenizer$vocabulary$id[which(tokenizer$vocabulary$subword=="<s>")])
+  return(idx)
+}
+
 #' Turn image into docformer torch tensor input feature
 #'
 #' @param image file path, url, or raw vector to image (png, tiff, jpeg, etc)
@@ -78,6 +109,19 @@ create_features_from_image <- function(image,
                             apply_mask_for_mlm=FALSE,
                             extras_for_debugging=FALSE) {
 
+  # step 0 prepare utilities datasets
+  mask_for_mlm <- if (apply_mask_for_mlm) {
+    runif(n=min(nrow(encoding), max_seq_len))>0.15
+  } else {
+    rep(TRUE, max_seq_len)
+  }
+  empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
+                           ymin = rep(0,max_seq_len),
+                           xmax = rep(0,max_seq_len),
+                           ymax = rep(0,max_seq_len),
+                           idx = list(0),
+                           prior=TRUE)
+
   # step 1 read images and its attributes
   original_image <- image_read(image)
   w_h <- image_info(original_image)
@@ -87,51 +131,24 @@ create_features_from_image <- function(image,
 
   # step 3 extract text throuhg OCR and normalize bbox to 1000x1000
   encoding <- apply_ocr(original_image) %>%
-    mutate(xmin = round(xmin/w_h$width * 1000),
+    dplyr::mutate(xmin = round(xmin/w_h$width * 1000),
            ymin= round(ymin/w_h$height * 1000),
            xmax = round(xmax/w_h$width * 1000),
-           ymax= round(ymax/w_h$height * 1000)
-    )
+           ymax= round(ymax/w_h$height * 1000),
+    # step 4 tokenize words into `idx` and get their bbox
+           idx = .tokenize(tokenizer, word)) %>%
+    dplyr::select(-word, -confidence) %>%
+    # step 5.1 apply mask for the sake of pre-training
+    dplyr::bind_cols(prior=mask_for_mlm) %>%
+    # step 5.2: fill in a max_seq_len matrix
+    dplyr::bind_rows(empty_encoding)
 
-  # step 4 tokenize words and get their bbox
-  case_when(
-    # hftokenizer
-    inherits(tokenizer, c("tokenizer", "R6")) ~ {
-      cls_id <- tokenizer$encode("[CLS]")
-      pad_id <- tokenizer$encode("[PAD]")
-      mask_id <- tokenizer$encode("[MASK]")
-      sep_id <- tokenizer$encode("[SEP]")
-      encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~tokenizer$encode(.x)$ids))
-    },
-    #tokenizer.bpe
-    inherits(tokenizer, "youtokentome") ~ {
-      tok_voc <- tokenizer$vocabulary
-      cls_id <- tok_voc$id[which(tok_voc$subword=="<BOS>")]
-      pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
-      # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
-      sep_id <- tok_voc$id[which(tok_voc$subword=="<EOS>")]
-      encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~bpe_encode(tokenizer,.x, type="ids")))
-    },
-    #sentencepiece
-    inherits(tokenizer, "sentencepiece") ~ {
-      tok_voc <- tokenizer$vocabulary
-      cls_id <- tok_voc$id[which(tok_voc$subword=="<s>")]
-      # pad_id <- tok_voc$id[which(tok_voc$subword=="<PAD>")]
-      # mask_id <- tok_voc$id[which(tok_voc$subword=="<MASK>")]
-      sep_id <- tok_voc$id[which(tok_voc$subword=="</s>")]
-      encoding <- encoding %>%
-        mutate(idx = map(encoding$word, ~sentencepiece_encode(tokenizer,.x, type="ids")))
-    },
-    TRUE ~  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
-  )
-  # token_boxes, unnormalized_token_boxes = get_tokens_with_boxes(unnormalized_word_boxes,
-  #                                                               normalized_word_boxes,
-  #                                                               PAD_TOKEN_BOX,
-  #                                                               encoding.word_ids())
-  #
-  token_bbox
+  encoding_long <- encoding  %>%
+    tidyr::unnest_longer(col="idx") %>%
+    # step 5.3: truncate seq. to maximum length
+    dplyr::slice_head(n=max_seq_len)
+    # step 6: (nill here)
+
 }
 #' Turn document into docformer torch tensor input feature
 #'
