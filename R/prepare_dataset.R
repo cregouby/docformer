@@ -119,8 +119,8 @@ apply_ocr <- function(image) {
 #' @examples
 create_features_from_image <- function(image,
                             tokenizer,
-                            add_batch_dim=TRUE,
-                            target_geometry="224x224",
+                            add_batch_dim=FALSE,
+                            target_geometry="500x384",
                             max_seq_len=512,
                             save_to_disk=FALSE,
                             path_to_save=NULL,
@@ -145,6 +145,7 @@ create_features_from_image <- function(image,
   # step 1 read images and its attributes
   original_image <- magick::image_read(image)
   w_h <- magick::image_info(original_image)
+  CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
 
   # step 2: resize image
   resized_image <- magick::image_resize(original_image, geometry=target_geometry)
@@ -173,8 +174,17 @@ create_features_from_image <- function(image,
     # step 8 normlize the image
 
   encoding_tt <- torch::torch_stack(
-    encoding = torch::torch_tensor(encoding)
+    encoding_long %>% select(-word, -prior) %>% as.matrix %>% torch::torch_tensor(dtype = torch::torch_double()),
+    original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
   )
+  # step 10: rescale and align the bounding boxes to match the resized image size (typically 224x224)
+  # step 11: add the relative distances in the normalized grid
+  # step 12: convert all to tensors
+  # step 13: add tokens for debugging
+  # step 14: add extra dim for batch
+  # step 15: save to disk
+  # step 16: keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+
 
 }
 #' Turn document into docformer torch tensor input feature
