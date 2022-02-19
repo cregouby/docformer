@@ -128,11 +128,6 @@ create_features_from_image <- function(image,
                             debugging=FALSE) {
 
   # step 0 prepare utilities datasets
-  mask_for_mlm <- if (apply_mask_for_mlm) {
-    runif(n=min(nrow(encoding), max_seq_len))>0.15
-  } else {
-    rep(TRUE, max_seq_len)
-  }
   mask_id <- .mask_id(tokenizer)
   empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
                            ymin = rep(0,max_seq_len),
@@ -176,13 +171,19 @@ create_features_from_image <- function(image,
       # step 4 tokenize words into `idx` and get their bbox
       idx = .tokenize(tokenizer, word)) %>%
     dplyr::select(-confidence, -x_center, -y_center) %>%
-    tidyr::replace_na(list("", rep(0, 13))) %>%
+    tidyr::replace_na(list("", rep(0, 13)))
+
+  mask_for_mlm <- if (apply_mask_for_mlm) {
+    runif(n=min(nrow(encoding), max_seq_len))>0.15
+  } else {
+    rep(TRUE, max_seq_len)
+  }
+
+  encoding_long <- encoding  %>%
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
     dplyr::bind_rows(empty_encoding)
-
-  encoding_long <- encoding  %>%
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
@@ -243,11 +244,13 @@ create_features_from_doc <- function(doc,
                                         apply_mask_for_mlm=FALSE,
                                         extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
+  # TODO BUG we do mask padding entries here, as we don't have the len(encoding) at this step
   mask_for_mlm <- if (apply_mask_for_mlm) {
-    runif(n=min(nrow(encoding), max_seq_len))>0.15
+    runif(n=max_seq_len)>0.15
   } else {
     rep(TRUE, max_seq_len)
   }
+
   mask_id <- .mask_id(tokenizer)
   empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
                                   ymin = rep(0,max_seq_len),
@@ -300,18 +303,19 @@ create_features_from_doc <- function(doc,
     # step 5.2: fill in a max_seq_len matrix
     dplyr::bind_rows(empty_encoding))
 
-  encoding_long <- encoding  %>%
+ encoding_long <- purrr::map(encoding, ~.x  %>%
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
     # step 6: (nill here)
     # step 7: apply mask for the sake of pre-training
-    mutate(idx = ifelse(prior, idx, mask_id))
+    mutate(idx = ifelse(prior, idx, mask_id)))
   # step 8 normlize the image
 
   # step 12 convert all to tensors
+ # TODO add a purrr::map to turn each of them into a batch tensor
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
-  x_features <-  encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+  x_features <- encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # y_feature
   y_features <- encoding_long %>% select(ymin, ymax, y_width, y_min_d, y_max_d, y_center_d) %>%
