@@ -2,7 +2,7 @@
 % Please edit documentation in R/supervised_model.R
 \name{docformer_config}
 \alias{docformer_config}
-\title{Configuration fro Docformer models}
+\title{Configuration for Docformer models}
 \usage{
 docformer_config(
   coordinate_size = 96L,
@@ -69,7 +69,7 @@ uses  to "cuda" if it's available, otherwise uses "cpu".}
 a named list will all needed hyperparameters of the Docformer implementation.
 }
 \description{
-Configuration fro Docformer models
+Configuration for Docformer models
 }
 \examples{
 config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, verbose=TRUE)

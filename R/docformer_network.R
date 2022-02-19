@@ -22,6 +22,7 @@ resnet_feature_extractor <- torch::nn_module(
     # use ResNet model for visual features embedding (remove classificaion head)
     resnet50 <- torchvision::model_resnet50(pretrain=TRUE)
     modules <- torch::nn_module_list(resnet50$children)
+    # extract resnet50 `layer 4`
     self$resnet50 <- torch::nn_sequential(modules[1:(length(modules)-2)])
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048,768,1)
@@ -53,8 +54,8 @@ docformer_embeddings <- torch::nn_module(
     self$x_bottomright_position_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$w_position_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
     self$x_topleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$x_bottomleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$x_topright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$x_bottomleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$x_topright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$x_bottomright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$x_centroid_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
 
@@ -62,8 +63,8 @@ docformer_embeddings <- torch::nn_module(
     self$y_bottomright_position_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$h_position_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
     self$y_topleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$y_bottomleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$y_topright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$y_bottomleft_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$y_topright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$y_bottomright_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$y_centroid_distance_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
 
@@ -73,8 +74,8 @@ docformer_embeddings <- torch::nn_module(
     self$x_bottomright_position_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$w_position_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
     self$x_topleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$x_bottomleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$x_topright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$x_bottomleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$x_topright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$x_bottomright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$x_centroid_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
 
@@ -82,8 +83,8 @@ docformer_embeddings <- torch::nn_module(
     self$y_bottomright_position_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$h_position_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$shape_size)
     self$y_topleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$y_bottomleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
-    self$y_topright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$y_bottomleft_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
+    # self$y_topright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$y_bottomright_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$y_centroid_distance_to_prev_embeddings_t <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
 
@@ -97,24 +98,22 @@ docformer_embeddings <- torch::nn_module(
     #
     #   (V-bar-s, T-bar-s) of shape (batch_size, 512,768),(batch_size, 512,768)
     #
-    # What are the 8 features:
+    # What are the 6 features:
     #
     # 1 -> top left x/y
     # 2 -> bottom right x/y
     # 3 -> width/height
     # 4 -> diff top left x/y
-    # 5 -> diff bottom left x/y
-    # 6 -> diff top right x/y
-    # 7 -> diff bottom right x/y
-    # 8 -> centroids diff x/y
+    # 5 -> diff bottom right x/y
+    # 6 -> centroids diff x/y
 
     batch <- x_feature.shape(1)
     seq_len  <-  x_feature.shape(2)
-    num_feat  <-  x_feature.shape(3) # 8
+    num_feat  <-  x_feature.shape(3) # 6
     hidden_size  <-  self$config$hidden_size
     sub_dim  <-  hidden_size %/% num_feat
 
-    # Clamping and adding a bias for handling negative values
+    # Clamp and add a bias for handling negative values
     x_feature[,,4:N] <- torch::torch_clamp(x_feature[,,4:N],-self$config["max_2d_position_embeddings"],self$config["max_2d_position_embeddings"])+self$config["max_2d_position_embeddings"]
     y_feature[,,4:N] <- torch::torch_clamp(y_feature[,,4:N],-self$config["max_2d_position_embeddings"],self$config["max_2d_position_embeddings"])+self$config["max_2d_position_embeddings"]
 
@@ -122,18 +121,18 @@ docformer_embeddings <- torch::nn_module(
     x_bottomright_position_embeddings_v <- self$x_bottomright_position_embeddings_v(x_feature[,,2])
     w_position_embeddings_v <- self$w_position_embeddings_v(x_feature[,,3])
     x_topleft_distance_to_prev_embeddings_v <- self$x_topleft_distance_to_prev_embeddings_v(x_feature[,,4])
-    x_bottomleft_distance_to_prev_embeddings_v <- self$x_bottomleft_distance_to_prev_embeddings_v(x_feature[,,5])
-    x_topright_distance_to_prev_embeddings_v <- self$x_topright_distance_to_prev_embeddings_v(x_feature[,,6])
-    x_bottomright_distance_to_prev_embeddings_v <- self$x_bottomright_distance_to_prev_embeddings_v(x_feature[,,7])
-    x_centroid_distance_to_prev_embeddings_v <- self$x_centroid_distance_to_prev_embeddings_v(x_feature[,,8])
+    # x_bottomleft_distance_to_prev_embeddings_v <- self$x_bottomleft_distance_to_prev_embeddings_v(x_feature[,,5])
+    # x_topright_distance_to_prev_embeddings_v <- self$x_topright_distance_to_prev_embeddings_v(x_feature[,,6])
+    x_bottomright_distance_to_prev_embeddings_v <- self$x_bottomright_distance_to_prev_embeddings_v(x_feature[,,5])
+    x_centroid_distance_to_prev_embeddings_v <- self$x_centroid_distance_to_prev_embeddings_v(x_feature[,,6])
 
     x_calculated_embedding_v <- torch::torch_cat(
       c(x_topleft_position_embeddings_v,
         x_bottomright_position_embeddings_v,
         w_position_embeddings_v,
         x_topleft_distance_to_prev_embeddings_v,
-        x_bottomleft_distance_to_prev_embeddings_v,
-        x_topright_distance_to_prev_embeddings_v,
+        # x_bottomleft_distance_to_prev_embeddings_v,
+        # x_topright_distance_to_prev_embeddings_v,
         x_bottomright_distance_to_prev_embeddings_v ,
         x_centroid_distance_to_prev_embeddings_v),
       dim = -1
@@ -143,18 +142,18 @@ docformer_embeddings <- torch::nn_module(
     y_bottomright_position_embeddings_v <- self$y_bottomright_position_embeddings_v(y_feature[,,2])
     h_position_embeddings_v <- self$h_position_embeddings_v(y_feature[,,3])
     y_topleft_distance_to_prev_embeddings_v <- self$y_topleft_distance_to_prev_embeddings_v(y_feature[,,4])
-    y_bottomleft_distance_to_prev_embeddings_v <- self$y_bottomleft_distance_to_prev_embeddings_v(y_feature[,,5])
-    y_topright_distance_to_prev_embeddings_v <- self$y_topright_distance_to_prev_embeddings_v(y_feature[,,6])
-    y_bottomright_distance_to_prev_embeddings_v <- self$y_bottomright_distance_to_prev_embeddings_v(y_feature[,,7])
-    y_centroid_distance_to_prev_embeddings_v <- self$y_centroid_distance_to_prev_embeddings_v(y_feature[,,8])
+    # y_bottomleft_distance_to_prev_embeddings_v <- self$y_bottomleft_distance_to_prev_embeddings_v(y_feature[,,5])
+    # y_topright_distance_to_prev_embeddings_v <- self$y_topright_distance_to_prev_embeddings_v(y_feature[,,6])
+    y_bottomright_distance_to_prev_embeddings_v <- self$y_bottomright_distance_to_prev_embeddings_v(y_feature[,,5])
+    y_centroid_distance_to_prev_embeddings_v <- self$y_centroid_distance_to_prev_embeddings_v(y_feature[,,6])
 
     x_calculated_embedding_v <- torch::torch_cat(
       c(x_topleft_position_embeddings_v,
         x_bottomright_position_embeddings_v,
         w_position_embeddings_v,
         x_topleft_distance_to_prev_embeddings_v,
-        x_bottomleft_distance_to_prev_embeddings_v,
-        x_topright_distance_to_prev_embeddings_v,
+        # x_bottomleft_distance_to_prev_embeddings_v,
+        # x_topright_distance_to_prev_embeddings_v,
         x_bottomright_distance_to_prev_embeddings_v ,
         x_centroid_distance_to_prev_embeddings_v),
       dim = -1
@@ -165,8 +164,8 @@ docformer_embeddings <- torch::nn_module(
         y_bottomright_position_embeddings_v,
         h_position_embeddings_v,
         y_topleft_distance_to_prev_embeddings_v,
-        y_bottomleft_distance_to_prev_embeddings_v,
-        y_topright_distance_to_prev_embeddings_v,
+        # y_bottomleft_distance_to_prev_embeddings_v,
+        # y_topright_distance_to_prev_embeddings_v,
         y_bottomright_distance_to_prev_embeddings_v ,
         y_centroid_distance_to_prev_embeddings_v),
     dim = -1
@@ -178,18 +177,18 @@ docformer_embeddings <- torch::nn_module(
     x_bottomright_position_embeddings_t <- self$x_bottomright_position_embeddings_t(x_feature[,,2])
     w_position_embeddings_t <- self$w_position_embeddings_t(x_feature[,,3])
     x_topleft_distance_to_prev_embeddings_t <- self$x_topleft_distance_to_prev_embeddings_t(x_feature[,,4])
-    x_bottomleft_distance_to_prev_embeddings_t <- self$x_bottomleft_distance_to_prev_embeddings_t(x_feature[,,5])
-    x_topright_distance_to_prev_embeddings_t <- self$x_topright_distance_to_prev_embeddings_t(x_feature[,,6])
-    x_bottomright_distance_to_prev_embeddings_t <- self$x_bottomright_distance_to_prev_embeddings_t(x_feature[,,7])
-    x_centroid_distance_to_prev_embeddings_t <- self$x_centroid_distance_to_prev_embeddings_t(x_feature[,,8])
+    # x_bottomleft_distance_to_prev_embeddings_t <- self$x_bottomleft_distance_to_prev_embeddings_t(x_feature[,,5])
+    # x_topright_distance_to_prev_embeddings_t <- self$x_topright_distance_to_prev_embeddings_t(x_feature[,,6])
+    x_bottomright_distance_to_prev_embeddings_t <- self$x_bottomright_distance_to_prev_embeddings_t(x_feature[,,5])
+    x_centroid_distance_to_prev_embeddings_t <- self$x_centroid_distance_to_prev_embeddings_t(x_feature[,,6])
 
     x_calculated_embedding_t <- torch::torch_cat(
       c(x_topleft_position_embeddings_t,
         x_bottomright_position_embeddings_t,
         w_position_embeddings_t,
         x_topleft_distance_to_prev_embeddings_t,
-        x_bottomleft_distance_to_prev_embeddings_t,
-        x_topright_distance_to_prev_embeddings_t,
+        # x_bottomleft_distance_to_prev_embeddings_t,
+        # x_topright_distance_to_prev_embeddings_t,
         x_bottomright_distance_to_prev_embeddings_t ,
         x_centroid_distance_to_prev_embeddings_t),
       dim = -1
@@ -199,18 +198,18 @@ docformer_embeddings <- torch::nn_module(
     y_bottomright_position_embeddings_t <- self$y_bottomright_position_embeddings_t(y_feature[,,2])
     h_position_embeddings_t <- self$h_position_embeddings_t(y_feature[,,3])
     y_topleft_distance_to_prev_embeddings_t <- self$y_topleft_distance_to_prev_embeddings_t(y_feature[,,4])
-    y_bottomleft_distance_to_prev_embeddings_t <- self$y_bottomleft_distance_to_prev_embeddings_t(y_feature[,,5])
-    y_topright_distance_to_prev_embeddings_t <- self$y_topright_distance_to_prev_embeddings_t(y_feature[,,6])
-    y_bottomright_distance_to_prev_embeddings_t <- self$y_bottomright_distance_to_prev_embeddings_t(y_feature[,,7])
-    y_centroid_distance_to_prev_embeddings_t <- self$y_centroid_distance_to_prev_embeddings_t(y_feature[,,8])
+    # y_bottomleft_distance_to_prev_embeddings_t <- self$y_bottomleft_distance_to_prev_embeddings_t(y_feature[,,5])
+    # y_topright_distance_to_prev_embeddings_t <- self$y_topright_distance_to_prev_embeddings_t(y_feature[,,6])
+    y_bottomright_distance_to_prev_embeddings_t <- self$y_bottomright_distance_to_prev_embeddings_t(y_feature[,,5])
+    y_centroid_distance_to_prev_embeddings_t <- self$y_centroid_distance_to_prev_embeddings_t(y_feature[,,6])
 
     x_calculated_embedding_t <- torch::torch_cat(
       c(x_topleft_position_embeddings_t,
         x_bottomright_position_embeddings_t,
         w_position_embeddings_t,
         x_topleft_distance_to_prev_embeddings_t,
-        x_bottomleft_distance_to_prev_embeddings_t,
-        x_topright_distance_to_prev_embeddings_t,
+        # x_bottomleft_distance_to_prev_embeddings_t,
+        # x_topright_distance_to_prev_embeddings_t,
         x_bottomright_distance_to_prev_embeddings_t ,
         x_centroid_distance_to_prev_embeddings_t),
       dim = -1
@@ -221,8 +220,8 @@ docformer_embeddings <- torch::nn_module(
         y_bottomright_position_embeddings_t,
         h_position_embeddings_t,
         y_topleft_distance_to_prev_embeddings_t,
-        y_bottomleft_distance_to_prev_embeddings_t,
-        y_topright_distance_to_prev_embeddings_t,
+        # y_bottomleft_distance_to_prev_embeddings_t,
+        # y_topright_distance_to_prev_embeddings_t,
         y_bottomright_distance_to_prev_embeddings_t ,
         y_centroid_distance_to_prev_embeddings_t),
       dim = -1
@@ -304,6 +303,7 @@ relative_position <- torch::nn_module(
 multimodal_attention_layer <- torch::nn_module(
   "multimodal_attention_layer",
   initialize = function(embed_dim, n_heads, max_relative_position, max_seq_length, dropout){
+    # TODO shift left consistency check to docformer_config()
     stopifnot("Error: `embed_dim` is not multiple of `n_head` which prevent initialization of the multimodal_attention_layer" = embed_dim %% n_heads ==0)
 
     self$embed_dim <- embed_dim
@@ -482,8 +482,8 @@ extract_features <- torch::nn_module(
 
   },
   forward = function(encoding) {
-    image <- encoding$resized_scaled_img
-    language <- encoding$input_ids
+    image <- encoding$image
+    language <- encoding$text
     x_feature <- encoding$x_features
     y_feature <- encoding$y_features
 

@@ -8,10 +8,10 @@ create_features_from_doc(
   doc,
   tokenizer,
   add_batch_dim = TRUE,
-  target_geometry = "224x224",
+  target_geometry = "500x384",
   max_seq_len = 512,
   save_to_disk = FALSE,
-  path_to_save = NULL,
+  path_to_save = "",
   apply_mask_for_mlm = FALSE,
   extras_for_debugging = FALSE
 )
@@ -37,7 +37,7 @@ create_features_from_doc(
 \item{extras_for_debugging}{additionnal feature for debugging purposes}
 }
 \value{
-
+a list of named tensors
 }
 \description{
 Turn document into docformer torch tensor input feature

@@ -1,4 +1,4 @@
-#' Configuration fro Docformer models
+#' Configuration for Docformer models
 #'
 #' @param coordinate_size (int): Output size  of each coordinate embedding (default 96)
 #' @param shape_size (int): Output size of each position embedding (default 96)

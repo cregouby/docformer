@@ -113,7 +113,7 @@ apply_ocr <- function(image) {
 #' @param apply_mask_for_mlm add mask to the language model
 #' @param debugging additionnal feature for debugging purposes
 #'
-#' @return
+#' @return a list of named tensors
 #' @export
 #'
 #' @examples
@@ -123,7 +123,7 @@ create_features_from_image <- function(image,
                             target_geometry="500x384",
                             max_seq_len=512,
                             save_to_disk=FALSE,
-                            path_to_save=NULL,
+                            path_to_save="",
                             apply_mask_for_mlm=FALSE,
                             debugging=FALSE) {
 
@@ -145,20 +145,38 @@ create_features_from_image <- function(image,
   # step 1 read images and its attributes
   original_image <- magick::image_read(image)
   w_h <- magick::image_info(original_image)
+  target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
+    as.numeric()
+  scale_w <- target_w_h[1] /  w_h$width
+  scale_h <- target_w_h[2] / w_h$height
   CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
 
   # step 2: resize image
   resized_image <- magick::image_resize(original_image, geometry=target_geometry)
 
-  # step 3 extract text throuhg OCR and normalize bbox to 1000x1000
+  # step 3 extract text throuhg OCR and normalize bbox to target geometry
   encoding <- apply_ocr(original_image) %>%
-    dplyr::mutate(xmin = round(xmin/w_h$width * 1000),
-           ymin= round(ymin/w_h$height * 1000),
-           xmax = round(xmax/w_h$width * 1000),
-           ymax= round(ymax/w_h$height * 1000),
-    # step 4 tokenize words into `idx` and get their bbox
-           idx = .tokenize(tokenizer, word)) %>%
-    dplyr::select(-confidence) %>%
+    dplyr::mutate(
+      # step 10 normalize the bbox
+      xmin = round(xmin * scale_w),
+      ymin= round(ymin * scale_h),
+      xmax = round(xmax * scale_w),
+      ymax= round(ymax * scale_h),
+      x_center = round((xmin + xmax )/2),
+      y_center = round((ymin + ymax )/2),
+      # step 11 add relative spatial features
+      x_width = xmax - xmin,
+      y_height = ymax - ymin,
+      x_min_d = dplyr::lead(xmin) - xmin,
+      y_min_d = dplyr::lead(ymin) - ymin,
+      x_max_d = dplyr::lead(xmax) - xmin,
+      y_max_d = dplyr::lead(ymax) - ymin,
+      x_center_d = dplyr::lead(x_center) - x_center,
+      y_center_d = dplyr::lead(y_center) - y_center,
+      # step 4 tokenize words into `idx` and get their bbox
+      idx = .tokenize(tokenizer, word)) %>%
+    dplyr::select(-confidence, -x_center, -y_center) %>%
+    tidyr::replace_na(list("", rep(0, 13))) %>%
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
@@ -173,18 +191,29 @@ create_features_from_image <- function(image,
     mutate(idx = ifelse(prior, idx, mask_id))
     # step 8 normlize the image
 
-  encoding_tt <- torch::torch_stack(
-    encoding_long %>% select(-word, -prior) %>% as.matrix %>% torch::torch_tensor(dtype = torch::torch_double()),
-    original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
-  )
-  # step 10: rescale and align the bounding boxes to match the resized image size (typically 224x224)
-  # step 11: add the relative distances in the normalized grid
-  # step 12: convert all to tensors
+  # step 12 convert all to tensors
+  # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
+  x_features <-  encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  # y_feature
+  y_features <- encoding_long %>% select(ymin, ymax, y_width, y_min_d, y_max_d, y_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  # text (used to be input_ids)
+  text <- encoding_long %>% select(idx) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
   # step 13: add tokens for debugging
-  # step 14: add extra dim for batch
-  # step 15: save to disk
-  # step 16: keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
 
+  # step 14: add extra dim for batch
+  encoding_lst <- if (add_batch_dim) {
+    list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1))
+  } else {
+    list(x_features=x_features, y_features=y_features, text=text, image=image)
+  }
+  # step 15: save to disk
+  saveRDS(encoding_list, file = here::here(path_to_save))
+  # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  encoding_list
 
 }
 #' Turn document into docformer torch tensor input feature
@@ -200,17 +229,108 @@ create_features_from_image <- function(image,
 #' @param apply_mask_for_mlm add mask to the language model
 #' @param extras_for_debugging additionnal feature for debugging purposes
 #'
-#' @return
+#' @return a list of named tensors
 #' @export
 #'
 #' @examples
 create_features_from_doc <- function(doc,
                                         tokenizer,
                                         add_batch_dim=TRUE,
-                                        target_geometry="224x224",
+                                        target_geometry="500x384",
                                         max_seq_len=512,
                                         save_to_disk=FALSE,
-                                        path_to_save=NULL,
+                                        path_to_save="",
                                         apply_mask_for_mlm=FALSE,
                                         extras_for_debugging=FALSE) {
+  # step 0 prepare utilities datasets
+  mask_for_mlm <- if (apply_mask_for_mlm) {
+    runif(n=min(nrow(encoding), max_seq_len))>0.15
+  } else {
+    rep(TRUE, max_seq_len)
+  }
+  mask_id <- .mask_id(tokenizer)
+  empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
+                                  ymin = rep(0,max_seq_len),
+                                  xmax = rep(0,max_seq_len),
+                                  ymax = rep(0,max_seq_len),
+                                  word = NA_character_,
+                                  idx = list(0),
+                                  prior=TRUE)
+
+  # step 1 read document and its attributes
+  w_h <- pdftools::pdf_pagesize(doc)
+  stopifnot("Multi-size page document is not supported yet"= var(w_h$width) == 0 & var(w_h$height) == 0)
+
+  target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
+    as.numeric()
+  scale_w <- mean(target_w_h[1] /  w_h$width)
+  scale_h <- mean(target_w_h[2] / w_h$height)
+  CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+
+  # step 2: resize image
+  # one page
+  # resized_image <- magick::image_resize(magick::image_read(pdftools::pdf_render_page(doc, numeric=F, page = 1)), geometry=target_geometry)
+
+  # step 3 extract text throuhg OCR and normalize bbox to target geometry
+  # TODO need to transform to lmap with the list(pdftools::pdf_data(doc), scale_w, scale_h) as arguments of an external function
+  encoding <-  purrr::map(pdftools::pdf_data(doc),
+    ~.x %>% dplyr::mutate(
+      # step 10 normalize the bbox
+      xmin = round( x * scale_w),
+      ymin = round( y * scale_h),
+      xmax = round((x + width) * scale_w),
+      ymax = round((y + height) * scale_h),
+      x_center = round((xmin + xmax )/2),
+      y_center = round((ymin + ymax )/2),
+      # step 11 add relative spatial features
+      x_width = xmax - xmin,
+      y_height = ymax - ymin,
+      x_min_d = dplyr::lead(xmin) - xmin,
+      y_min_d = dplyr::lead(ymin) - ymin,
+      x_max_d = dplyr::lead(xmax) - xmin,
+      y_max_d = dplyr::lead(ymax) - ymin,
+      x_center_d = dplyr::lead(x_center) - x_center,
+      y_center_d = dplyr::lead(y_center) - y_center,
+      # step 4 tokenize words into `idx` and get their bbox
+      idx = .tokenize(tokenizer, text)) %>%
+    dplyr::select(-x_center, -y_center) %>%
+    tidyr::replace_na(list("", rep(0, 13))) %>%
+    # step 5.1 apply mask for the sake of pre-training
+    dplyr::bind_cols(prior=mask_for_mlm) %>%
+    # step 5.2: fill in a max_seq_len matrix
+    dplyr::bind_rows(empty_encoding))
+
+  encoding_long <- encoding  %>%
+    tidyr::unnest_longer(col="idx") %>%
+    # step 5.3: truncate seq. to maximum length
+    dplyr::slice_head(n=max_seq_len) %>%
+    # step 6: (nill here)
+    # step 7: apply mask for the sake of pre-training
+    mutate(idx = ifelse(prior, idx, mask_id))
+  # step 8 normlize the image
+
+  # step 12 convert all to tensors
+  # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
+  x_features <-  encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  # y_feature
+  y_features <- encoding_long %>% select(ymin, ymax, y_width, y_min_d, y_max_d, y_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  # text (used to be input_ids)
+  text <- encoding_long %>% select(idx) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
+  # step 13: add tokens for debugging
+
+  # step 14: add extra dim for batch
+  encoding_lst <- if (add_batch_dim) {
+    list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1))
+  } else {
+    list(x_features=x_features, y_features=y_features, text=text, image=image)
+  }
+  # step 15: save to disk
+  saveRDS(encoding_list, file = here::here(path_to_save))
+  # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  encoding_list
+
 }
