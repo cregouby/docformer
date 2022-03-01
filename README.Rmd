@@ -32,21 +32,33 @@ You can install the development version of docformer like so:
 remotes::install_github("cregouby/docformer")
 ```
 
-docformer currently supports the `{hftokenizer}` package for tokenization prerequisites
+docformer currently supports the `{sentencepiece}` package for
+tokenization prerequisites, and relies on `{pdftools}` for digitally born pdfs, and `{tesseract}` with `{magick}` for OCR documents.
+
 ```{r}
-remotes::install_github("mlverse/hftokenizers")
+install.packages("sentencepiece")
 ```
 
-## Example
+## Example (Work in Progress)
 
 ![Side-by-side document ground truth and docformer prediction with superimposed color: red for title, blue for question, green for answer \label{Side-by-side ground truth and docformer prediction}](man/figure/README_result.jpg)
 
-This is a basic example which shows you how to solve a common problem:
+This is a basic workflow to train a docformer model:
 
 ```{r example}
 library(sentencepiece)
 library(docformer)
-## basic example code
+# get the corpus
+doc <- pins::pin("https://arxiv.org/pdf/2106.11539.pdf")
+
+# train a sentencepiece tokenizer
+doc_txt <- pdftools::pdf_text(doc)
+tmp <- tempfile()
+readr::write_lines(doc_txt, file=tmp)
+tok_model <- sentencepiece(tmp, type="bpe", vocab_size = 3000, verbose=T )
+
+# turn the document into docformer input tensor
+doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
 ```
 
 
