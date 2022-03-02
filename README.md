@@ -36,32 +36,19 @@ remotes::install_github("cregouby/docformer")
 #>   Use `force = TRUE` to force installation
 ```
 
-docformer currently supports the `{hftokenizer}` package for
-tokenization prerequisites
+docformer currently supports the `{sentencepiece}` package for
+tokenization prerequisites, and relies on `{pdftools}` for digitally born pdfs, and `{sentencepiece}`
 
 ``` r
-remotes::install_github("mlverse/hftokenizers")
-#> Downloading GitHub repo mlverse/hftokenizers@HEAD
-#> 
-#> * checking for file ‘/tmp/RtmpiE3ckQ/remotes1e7b9e38cf96f2/mlverse-hftokenizers-be50471/DESCRIPTION’ ... OK
-#> * preparing ‘hftokenizers’:
-#> * checking DESCRIPTION meta-information ... OK
-#> * cleaning src
-#> * checking for LF line-endings in source and make files and shell scripts
-#> * checking for empty or unneeded directories
-#> Omitted ‘LazyData’ from DESCRIPTION
-#> * building ‘hftokenizers_0.1.0.tar.gz’
-#> Installation du package dans '/home/home/creg/R/x86_64-pc-linux-gnu-library/4.1'
-#> (car 'lib' n'est pas spécifié)
+install.packages("sentencepiece")
 ```
 
-## Example
+## Example (Work in progress)
 
 ![Side-by-side document ground truth and docformer prediction with
 superimposed color: red for title, blue for question, green for answer
 ](man/figure/README_result.jpg)
 
-This is a basic example which shows you how to solve a common problem:
 
 ``` r
 library(sentencepiece)

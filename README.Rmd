@@ -59,6 +59,10 @@ tok_model <- sentencepiece(tmp, type="bpe", vocab_size = 3000, verbose=T )
 
 # turn the document into docformer input tensor
 doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
+
+# train a model from that tensor
+docformer_model <- docformer_pretrain(doc_tensor)
+
 ```
 
 

@@ -244,20 +244,21 @@ create_features_from_doc <- function(doc,
                                         apply_mask_for_mlm=FALSE,
                                         extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
-  # TODO BUG we do mask padding entries here, as we don't have the len(encoding) at this step
-  mask_for_mlm <- if (apply_mask_for_mlm) {
-    runif(n=max_seq_len)>0.15
-  } else {
-    rep(TRUE, max_seq_len)
-  }
-
   mask_id <- .mask_id(tokenizer)
   empty_encoding <- dplyr::tibble(xmin = rep(0,max_seq_len),
                                   ymin = rep(0,max_seq_len),
                                   xmax = rep(0,max_seq_len),
                                   ymax = rep(0,max_seq_len),
-                                  word = NA_character_,
-                                  idx = list(0),
+                                  x_width = rep(0,max_seq_len),
+                                  y_height = rep(0,max_seq_len),
+                                  x_min_d = rep(0,max_seq_len),
+                                  y_min_d = rep(0,max_seq_len),
+                                  x_max_d = rep(0,max_seq_len),
+                                  y_max_d = rep(0,max_seq_len),
+                                  x_center_d = rep(0,max_seq_len),
+                                  y_center_d = rep(0,max_seq_len),
+                                  text = NA_character_,
+                                  idx = list(list(0)),
                                   prior=TRUE)
 
   # step 1 read document and its attributes
@@ -297,13 +298,25 @@ create_features_from_doc <- function(doc,
       # step 4 tokenize words into `idx` and get their bbox
       idx = .tokenize(tokenizer, text)) %>%
     dplyr::select(-x_center, -y_center) %>%
-    tidyr::replace_na(list("", rep(0, 13))) %>%
+    tidyr::replace_na(list("", rep(0, 13))))
+
+  mask_for_mlm <- if (apply_mask_for_mlm) {
+    map(encoding, ~runif(n=nrow(.x))>0.15)
+  } else {
+    map(encoding, ~rep(TRUE, nrow(.x)))
+  }
+
+  encoding <-  purrr::map2(encoding, mask_for_mlm, ~.x %>%
     # step 5.1 apply mask for the sake of pre-training
-    dplyr::bind_cols(prior=mask_for_mlm) %>%
-    # step 5.2: fill in a max_seq_len matrix
-    dplyr::bind_rows(empty_encoding))
+    dplyr::bind_cols(prior=.y) %>%
+    # step 5.2: pad and slice to max_seq_len
+    dplyr::bind_rows(empty_encoding) %>%
+    dplyr::slice_head(n=max_seq_len)
+  )
 
  encoding_long <- purrr::map(encoding, ~.x  %>%
+    tidyr::unnest_longer(col="idx", simplify = F) %>%
+    # TODO BUG some idx remains nested lists
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
