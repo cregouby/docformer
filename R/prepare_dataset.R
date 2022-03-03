@@ -44,7 +44,7 @@ resize_align_bbox <- function(bbox, origin_w, origin_h, target_w, target_h) {
 apply_ocr <- function(image) {
   ocr_df <- tesseract::ocr_data(image) %>%
     mutate(poor_word =( stringr::str_detect(word, "^\\W+$|\\W{3,}") | confidence <20),
-           bb = bbox %>% stringr::str_split(",") %>% purrr::map(~readr::parse_number(.x))) %>%
+           bb = bbox %>% stringr::str_split(",") %>% purrr::map(as.integer)) %>%
     tidyr::unnest_wider(bb, names_sep="_") %>%
     filter(!poor_word) %>%
     select(word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
@@ -76,9 +76,9 @@ apply_ocr <- function(image) {
   return(idx)
 }
 .tokenize.sentencepiece <- function(tokenizer, x) {
-  idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids"))
-  idx[[1]] <- idx[[1]] %>%
-    purrr::prepend(sentencepiece::sentencepiece_encode(tokenizer, "<s>", type="ids"))
+  idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
+  idx <- idx %>%
+    purrr::prepend(sentencepiece::sentencepiece_encode(tokenizer, "<s>", type="ids")[[1]])
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
 }
@@ -133,8 +133,16 @@ create_features_from_image <- function(image,
                            ymin = rep(0,max_seq_len),
                            xmax = rep(0,max_seq_len),
                            ymax = rep(0,max_seq_len),
+                           x_width = rep(0,max_seq_len),
+                           y_height = rep(0,max_seq_len),
+                           x_min_d = rep(0,max_seq_len),
+                           y_min_d = rep(0,max_seq_len),
+                           x_max_d = rep(0,max_seq_len),
+                           y_max_d = rep(0,max_seq_len),
+                           x_center_d = rep(0,max_seq_len),
+                           y_center_d = rep(0,max_seq_len),
                            word = NA_character_,
-                           idx = list(0),
+                           idx = list(list(0)),
                            prior=TRUE)
 
   # step 1 read images and its attributes
@@ -174,16 +182,16 @@ create_features_from_image <- function(image,
     tidyr::replace_na(list("", rep(0, 13)))
 
   mask_for_mlm <- if (apply_mask_for_mlm) {
-    runif(n=min(nrow(encoding), max_seq_len))>0.15
+    runif(n=nrow(encoding))>0.15
   } else {
-    rep(TRUE, max_seq_len)
+    rep(TRUE, nrow(encoding))
   }
 
   encoding_long <- encoding  %>%
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
-    dplyr::bind_rows(empty_encoding)
+    dplyr::bind_rows(empty_encoding) %>%
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
@@ -197,7 +205,7 @@ create_features_from_image <- function(image,
   x_features <-  encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # y_feature
-  y_features <- encoding_long %>% select(ymin, ymax, y_width, y_min_d, y_max_d, y_center_d) %>%
+  y_features <- encoding_long %>% select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # text (used to be input_ids)
   text <- encoding_long %>% select(idx) %>%
@@ -315,8 +323,6 @@ create_features_from_doc <- function(doc,
   )
 
  encoding_long <- purrr::map(encoding, ~.x  %>%
-    tidyr::unnest_longer(col="idx", simplify = F) %>%
-    # TODO BUG some idx remains nested lists
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
@@ -331,7 +337,7 @@ create_features_from_doc <- function(doc,
   x_features <- encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # y_feature
-  y_features <- encoding_long %>% select(ymin, ymax, y_width, y_min_d, y_max_d, y_center_d) %>%
+  y_features <- encoding_long %>% select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # text (used to be input_ids)
   text <- encoding_long %>% select(idx) %>%
