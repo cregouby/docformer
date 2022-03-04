@@ -70,15 +70,19 @@ apply_ocr <- function(image) {
   return(idx)
 }
 .tokenize.youtokentome <- function(tokenizer, x) {
-  idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids"))
-  idx[[1]] <- idx[[1]] %>%
-    purrr::prepend(tokenizers.bpe::bpe_encode(tokenizer,"<BOS>", type="ids"))
+  idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
+  idx[[1]] <- dplyr::first(idx) %>%
+    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id)
+  idx[[length(idx)]] <- dplyr::last(idx) %>%
+    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id)
   return(idx)
 }
 .tokenize.sentencepiece <- function(tokenizer, x) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
-  idx <- idx %>%
-    purrr::prepend(sentencepiece::sentencepiece_encode(tokenizer, "<s>", type="ids")[[1]])
+  idx[[1]] <- dplyr::first(idx) %>%
+    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id)
+  idx[[length(idx)]] <- dplyr::last(idx) %>%
+    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id)
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
 }
@@ -90,14 +94,26 @@ apply_ocr <- function(image) {
   rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
 }
 .mask_id.tokenizer <- function(tokenizer) {
-  return(tokenizer$encode("[MASK]")$ids)
+  mask_id <- tokenizer$encode("[MASK]")$ids
+  if (length(mask_id)==0) {
+    rlang::abort("tokenizer do not encode <mask> properly.")
+  }
+  return(mask_id)
 }
 .mask_id.youtokentome <- function(tokenizer) {
-  return(tokenizers.bpe::bpe_encode(tokenizer,"<MASK>", type="ids"))
+  mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<MASK>",]$id
+  if (length(mask_id)==0) {
+    rlang::abort("tokenizer do not encode <MASK> properly.")
+  }
+  return(mask_id)
 }
 .mask_id.sentencepiece <- function(tokenizer) {
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
-  return(sentencepiece::sentencepiece_encode(tokenizer, "<mask>", type="ids"))
+  mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<mask>",]$id
+  if (length(mask_id)==0) {
+    rlang::abort("tokenizer do not encode <mask> properly.")
+  }
+  return(mask_id)
 }
 
 #' Turn image into docformer torch tensor input feature
