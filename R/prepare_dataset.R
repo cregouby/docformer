@@ -43,11 +43,11 @@ resize_align_bbox <- function(bbox, origin_w, origin_h, target_w, target_h) {
 #'    apply_ocr()
 apply_ocr <- function(image) {
   ocr_df <- tesseract::ocr_data(image) %>%
-    mutate(poor_word =( stringr::str_detect(word, "^\\W+$|\\W{3,}") | confidence <20),
+    dplyr::mutate(poor_word =( stringr::str_detect(word, "^\\W+$|\\W{3,}") | confidence <20),
            bb = bbox %>% stringr::str_split(",") %>% purrr::map(as.integer)) %>%
     tidyr::unnest_wider(bb, names_sep="_") %>%
-    filter(!poor_word) %>%
-    select(word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
+    dplyr::filter(!poor_word) %>%
+    dplyr::select(word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
   return(ocr_df)
 }
 
@@ -96,14 +96,14 @@ apply_ocr <- function(image) {
 .mask_id.tokenizer <- function(tokenizer) {
   mask_id <- tokenizer$encode("[MASK]")$ids
   if (length(mask_id)==0) {
-    rlang::abort("tokenizer do not encode <mask> properly.")
+    rlang::abort("tokenizer do not encode `[MASK]` properly.")
   }
   return(mask_id)
 }
 .mask_id.youtokentome <- function(tokenizer) {
   mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<MASK>",]$id
   if (length(mask_id)==0) {
-    rlang::abort("tokenizer do not encode <MASK> properly.")
+    rlang::abort("tokenizer do not encode `<MASK>` properly.")
   }
   return(mask_id)
 }
@@ -111,7 +111,7 @@ apply_ocr <- function(image) {
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<mask>",]$id
   if (length(mask_id)==0) {
-    rlang::abort("tokenizer do not encode <mask> properly.")
+    rlang::abort("tokenizer do not encode `<mask>` properly.")
   }
   return(mask_id)
 }
@@ -158,7 +158,7 @@ create_features_from_image <- function(image,
                            x_center_d = rep(0,max_seq_len),
                            y_center_d = rep(0,max_seq_len),
                            word = NA_character_,
-                           idx = list(list(0)),
+                           idx = list(0),
                            prior=TRUE)
 
   # step 1 read images and its attributes
@@ -213,18 +213,18 @@ create_features_from_image <- function(image,
     dplyr::slice_head(n=max_seq_len) %>%
     # step 6: (nill here)
     # step 7: apply mask for the sake of pre-training
-    mutate(idx = ifelse(prior, idx, mask_id))
+    dplyr::mutate(idx = ifelse(prior, idx, mask_id))
     # step 8 normlize the image
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
-  x_features <-  encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+  x_features <-  encoding_long %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # y_feature
-  y_features <- encoding_long %>% select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
+  y_features <- encoding_long %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # text (used to be input_ids)
-  text <- encoding_long %>% select(idx) %>%
+  text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
   # step 13: add tokens for debugging
@@ -236,9 +236,11 @@ create_features_from_image <- function(image,
     list(x_features=x_features, y_features=y_features, text=text, image=image)
   }
   # step 15: save to disk
-  saveRDS(encoding_list, file = here::here(path_to_save))
+  if (save_to_disk) {
+    saveRDS(encoding_lst, file = here::here(paste0(path_to_save,stringr::str_extract(image, "[^/]+$"),".Rds")))
+  }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
-  encoding_list
+  encoding_lst
 
 }
 #' Turn document into docformer torch tensor input feature
@@ -282,7 +284,7 @@ create_features_from_doc <- function(doc,
                                   x_center_d = rep(0,max_seq_len),
                                   y_center_d = rep(0,max_seq_len),
                                   text = NA_character_,
-                                  idx = list(list(0)),
+                                  idx = list(0),
                                   prior=TRUE)
 
   # step 1 read document and its attributes
@@ -325,38 +327,37 @@ create_features_from_doc <- function(doc,
     tidyr::replace_na(list("", rep(0, 13))))
 
   mask_for_mlm <- if (apply_mask_for_mlm) {
-    map(encoding, ~runif(n=nrow(.x))>0.15)
+    purrr::map(encoding, ~runif(n=nrow(.x))>0.15)
   } else {
-    map(encoding, ~rep(TRUE, nrow(.x)))
+    purrr::map(encoding, ~rep(TRUE, nrow(.x)))
   }
 
   encoding <-  purrr::map2(encoding, mask_for_mlm, ~.x %>%
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=.y) %>%
     # step 5.2: pad and slice to max_seq_len
-    dplyr::bind_rows(empty_encoding) %>%
-    dplyr::slice_head(n=max_seq_len)
+    dplyr::bind_rows(empty_encoding)
   )
 
- encoding_long <- purrr::map(encoding, ~.x  %>%
+  encoding_long <- purrr::map(encoding, ~.x  %>%
     tidyr::unnest_longer(col="idx") %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
     # step 6: (nill here)
     # step 7: apply mask for the sake of pre-training
-    mutate(idx = ifelse(prior, idx, mask_id)))
+    dplyr::mutate(idx = ifelse(prior, idx, mask_id)))
   # step 8 normlize the image
 
   # step 12 convert all to tensors
  # TODO add a purrr::map to turn each of them into a batch tensor
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
-  x_features <- encoding_long %>% select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+  x_features <- encoding_long %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # y_feature
-  y_features <- encoding_long %>% select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
+  y_features <- encoding_long %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # text (used to be input_ids)
-  text <- encoding_long %>% select(idx) %>%
+  text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
   # step 13: add tokens for debugging
@@ -368,8 +369,10 @@ create_features_from_doc <- function(doc,
     list(x_features=x_features, y_features=y_features, text=text, image=image)
   }
   # step 15: save to disk
-  saveRDS(encoding_list, file = here::here(path_to_save))
+  if (save_to_disk) {
+    saveRDS(encoding_lst, file = here::here(paste0(path_to_save,stringr::str_extract(doc, "[^/]+$"),".Rds")))
+  }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
-  encoding_list
+  encoding_lst
 
 }
