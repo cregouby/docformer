@@ -1,18 +1,3 @@
-sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
-sent_tok_mask <- sent_tok
-sent_tok_mask$vocab_size <- sent_tok_mask$vocab_size+1L
-sent_tok_mask$vocabulary <- rbind(sent_tok_mask$vocabulary, data.frame(id=sent_tok_mask$vocab_size, subword="<mask>"))
-
-bpe_tok <- tokenizers.bpe::bpe_load_model(system.file(package="tokenizers.bpe", "extdata/youtokentome.bpe"))
-bpe_tok_mask <- bpe_tok
-bpe_tok_mask$vocab_size <- bpe_tok_mask$vocab_size+1L
-bpe_tok_mask$vocabulary <- rbind(bpe_tok_mask$vocabulary, data.frame(id=bpe_tok_mask$vocab_size, subword="<MASK>"))
-
-# hf_tok <- hftokenizers::(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
-
-image <- system.file(package="docformer", "inst", "2106.11539_1.png")
-doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
-
 test_that("normalize_box works with single var", {
   expect_equal(normalize_box(c(22,34,27,41), width=100, height=100, size=100), c(22,34,27,41))
 })
@@ -45,23 +30,76 @@ test_that("tokenizer that cannot encode MASK raise an error", {
 
 test_that("create_features_from_image works with default values", {
   # sentencepiece
-  expect_error(create_features_from_image(image, sent_tok_mask),
+  expect_error(image_tt <- create_features_from_image(image, sent_tok_mask),
                regexp = NA)
+  expect_type(image_tt, "list")
+  expect_length(image_tt, 4)
+  expect_equal(image_tt$x_features$shape, c(1, 512, 6))
+  expect_equal(image_tt$y_features$shape, c(1, 512, 6))
+  expect_equal(image_tt$text$shape, c(1, 512, 1))
+  expect_equal(image_tt$image$shape[1:2], c(1, 3))
+  expect_lte(image_tt$image$shape[3], 500)
+  expect_lte(image_tt$image$shape[4], 384)
+
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+
   # tokenizer.bpe
   expect_error(create_features_from_image(image, bpe_tok_mask),
                regexp = NA)
 })
 
-test_that("create_features_from_doc works with default values", {
+test_that("create_features_from_doc provides expected output from default values", {
+  # Single-page document
   # sentencepiece
-  expect_error(create_features_from_doc(doc, sent_tok_mask),
+  qpdf::pdf_subset(doc, output = "2106.11539_1.pdf")
+  expect_error(page1_tt <- create_features_from_doc("2106.11539_1.pdf", sent_tok_mask),
                regexp = NA)
+  expect_type(page1_tt, "list")
+  expect_length(page1_tt, 4)
+  expect_equal(page1_tt$x_features$shape, c(1, 512, 6))
+  expect_equal(page1_tt$y_features$shape, c(1, 512, 6))
+  expect_equal(page1_tt$text$shape, c(1, 512, 1))
+  expect_equal(page1_tt$image$shape[1:2], c(1, 3))
+  expect_lte(page1_tt$image$shape[3], 500)
+  expect_lte(page1_tt$image$shape[4], 384)
+
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+
+  # tokenizer.bpe
+  expect_error(create_features_from_doc("2106.11539_1.pdf", bpe_tok_mask),
+               regexp = NA)
+
+  # Multi-page document
+  # sentencepiece
+  expect_error(doc_tt <- create_features_from_doc(doc, sent_tok_mask),
+               regexp = NA)
+  expect_type(doc_tt, "list")
+  expect_length(doc_tt, 4)
+  expect_equal(doc_tt$x_features$shape, c(2, 512, 6))
+  expect_equal(doc_tt$y_features$shape, c(2, 512, 6))
+  expect_equal(doc_tt$text$shape, c(2, 512, 1))
+  expect_equal(doc_tt$image$shape[1:2], c(2, 3))
+  expect_lte(doc_tt$image$shape[3], 500)
+  expect_lte(doc_tt$image$shape[4], 384)
+
+  # hf tokenizer
+  # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+
   # tokenizer.bpe
   expect_error(create_features_from_doc(doc, bpe_tok_mask),
                regexp = NA)
 })
+
+test_that("create_features_* properly save to disk", {
+  expect_error(create_features_from_image(image, sent_tok_mask, save_to_disk = TRUE),
+               regexp = NA)
+  expect_that(file.exists(here::here("2106.11539_1.png.Rds")))
+
+  expect_error(create_features_from_doc(doc, sent_tok_mask, save_to_disk = TRUE),
+               regexp = NA)
+  expect_that(file.exists(here::here("2106.11539_1_2.pdf.Rds")))
+})
+
 

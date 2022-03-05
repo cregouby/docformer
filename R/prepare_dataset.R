@@ -66,11 +66,13 @@ apply_ocr <- function(image) {
 }
 .tokenize.tokenizer <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizer$encode(.x)$ids)
+  # TODO BUG shall shift-right after max_seq_len slicing
   idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
   return(idx)
 }
 .tokenize.youtokentome <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
+  # TODO BUG shall shift-right after max_seq_len slicing
   idx[[1]] <- dplyr::first(idx) %>%
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id)
   idx[[length(idx)]] <- dplyr::last(idx) %>%
@@ -79,6 +81,7 @@ apply_ocr <- function(image) {
 }
 .tokenize.sentencepiece <- function(tokenizer, x) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
+  # TODO BUG shall shift-right after max_seq_len slicing
   idx[[1]] <- dplyr::first(idx) %>%
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id)
   idx[[length(idx)]] <- dplyr::last(idx) %>%
@@ -135,7 +138,7 @@ apply_ocr <- function(image) {
 #' @examples
 create_features_from_image <- function(image,
                             tokenizer,
-                            add_batch_dim=FALSE,
+                            add_batch_dim=TRUE,
                             target_geometry="500x384",
                             max_seq_len=512,
                             save_to_disk=FALSE,
@@ -263,7 +266,7 @@ create_features_from_image <- function(image,
 create_features_from_doc <- function(doc,
                                         tokenizer,
                                         add_batch_dim=TRUE,
-                                        target_geometry="500x384",
+                                        target_geometry="384x500",
                                         max_seq_len=512,
                                         save_to_disk=FALSE,
                                         path_to_save="",
@@ -289,7 +292,9 @@ create_features_from_doc <- function(doc,
 
   # step 1 read document and its attributes
   w_h <- pdftools::pdf_pagesize(doc)
-  stopifnot("Multi-size page document is not supported yet"= var(w_h$width) == 0 & var(w_h$height) == 0)
+  if (nrow(w_h)>1 & (var(w_h$width) > 0 | var(w_h$height) > 0)) {
+    rlang::abort("Multi-size page document is not supported yet")
+  }
 
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
@@ -346,27 +351,28 @@ create_features_from_doc <- function(doc,
     # step 6: (nill here)
     # step 7: apply mask for the sake of pre-training
     dplyr::mutate(idx = ifelse(prior, idx, mask_id)))
-  # step 8 normlize the image
 
   # step 12 convert all to tensors
- # TODO add a purrr::map to turn each of them into a batch tensor
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
-  x_features <- encoding_long %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  x_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # y_feature
-  y_features <- encoding_long %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+  y_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # text (used to be input_ids)
-  text <- encoding_long %>% dplyr::select(idx) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
-  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
+  text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+  # step 8 normlize the image
+  image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
+                                           magick::image_scale(target_geometry) %>%
+                                           torchvision::transform_to_tensor()/256))
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1))
-  } else {
     list(x_features=x_features, y_features=y_features, text=text, image=image)
+  } else {
+    list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
   # step 15: save to disk
   if (save_to_disk) {
