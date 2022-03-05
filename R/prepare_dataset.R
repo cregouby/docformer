@@ -127,8 +127,6 @@ apply_ocr <- function(image) {
 #' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
-#' @param save_to_disk (boolean) shall we save the result onto disk
-#' @param path_to_save result path
 #' @param apply_mask_for_mlm add mask to the language model
 #' @param debugging additionnal feature for debugging purposes
 #'
@@ -136,13 +134,19 @@ apply_ocr <- function(image) {
 #' @export
 #'
 #' @examples
+#' # load a tokenizer with <mask> encoding capability
+#' sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+#' sent_tok$vocab_size <- sent_tok$vocab_size+1L
+#' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+#' # turn pdf into feature
+#' image <- system.file(package="docformer", "inst", "2106.11539_1.png")
+#' image_tt <- create_features_from_image(image, tokenizer=sent_tok)
+#'
 create_features_from_image <- function(image,
                             tokenizer,
                             add_batch_dim=TRUE,
                             target_geometry="500x384",
                             max_seq_len=512,
-                            save_to_disk=FALSE,
-                            path_to_save="",
                             apply_mask_for_mlm=FALSE,
                             debugging=FALSE) {
 
@@ -229,7 +233,7 @@ create_features_from_image <- function(image,
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
-  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()/256
+  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
@@ -237,10 +241,6 @@ create_features_from_image <- function(image,
     list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1))
   } else {
     list(x_features=x_features, y_features=y_features, text=text, image=image)
-  }
-  # step 15: save to disk
-  if (save_to_disk) {
-    saveRDS(encoding_lst, file = here::here(paste0(path_to_save,stringr::str_extract(image, "[^/]+$"),".Rds")))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   encoding_lst
@@ -263,13 +263,19 @@ create_features_from_image <- function(image,
 #' @export
 #'
 #' @examples
+#' # load a tokenizer with <mask> encoding capability
+#' sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+#' sent_tok$vocab_size <- sent_tok$vocab_size+1L
+#' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+#' # turn pdf into feature
+#' doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
+#' doc_tt <- create_features_from_doc(doc, tokenizer=sent_tok)
+#'
 create_features_from_doc <- function(doc,
                                         tokenizer,
                                         add_batch_dim=TRUE,
                                         target_geometry="384x500",
                                         max_seq_len=512,
-                                        save_to_disk=FALSE,
-                                        path_to_save="",
                                         apply_mask_for_mlm=FALSE,
                                         extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
@@ -365,7 +371,7 @@ create_features_from_doc <- function(doc,
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            magick::image_scale(target_geometry) %>%
-                                           torchvision::transform_to_tensor()/256))
+                                           torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
@@ -374,11 +380,32 @@ create_features_from_doc <- function(doc,
   } else {
     list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
-  # step 15: save to disk
-  if (save_to_disk) {
-    saveRDS(encoding_lst, file = here::here(paste0(path_to_save,stringr::str_extract(doc, "[^/]+$"),".Rds")))
-  }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   encoding_lst
 
+}
+#' Save feature tensor to disk
+#'
+#' @param encoding_lst : the feature tensor list to save
+#' @param file : destination file
+#'
+#' @return
+#' @export
+save_featureRDS <- function(encoding_lst, file) {
+  # step 15: save to disk
+    saveRDS(purrr::map(encoding_lst, ~.x$to(device="cpu") %>% as.array), file = file)
+}
+
+#' Load feature tensor from disk
+#'
+#' @param file : source file
+#'
+#' @return
+#' @export
+read_featureRDS <- function(file) {
+  # step 15: load from disk
+  encoding_lst <- readRDS(file = file)
+  encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_double()))
+  encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
+  encoding_lst
 }

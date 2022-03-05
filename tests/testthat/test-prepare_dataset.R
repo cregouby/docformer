@@ -92,14 +92,28 @@ test_that("create_features_from_doc provides expected output from default values
                regexp = NA)
 })
 
-test_that("create_features_* properly save to disk", {
-  expect_error(create_features_from_image(image, sent_tok_mask, save_to_disk = TRUE),
-               regexp = NA)
-  expect_that(file.exists(here::here("2106.11539_1.png.Rds")))
+test_that("features properly save to disk and can be restored", {
+  doc_tt <- create_features_from_doc(doc, sent_tok_mask)
+  image_tt <- create_features_from_image(image, sent_tok_mask)
+  withr::local_file({
+    doc_file <- paste0(stringr::str_extract(doc, "[^/]+$"),".Rds")
+    expect_error(save_featureRDS(doc_tt, file=doc_file),
+                 regexp = NA)
+    expect_true(file.exists(doc_file))
+    expect_error(doc2_tt <- read_featureRDS(file=doc_file),
+                 regexp = NA)
+    expect_equal(purrr::map(doc2_tt,~.x$shape), purrr::map(doc_tt,~.x$shape))
+    expect_equal(purrr::map(doc2_tt,~.x$dtype), purrr::map(doc_tt,~.x$dtype))
 
-  expect_error(create_features_from_doc(doc, sent_tok_mask, save_to_disk = TRUE),
-               regexp = NA)
-  expect_that(file.exists(here::here("2106.11539_1_2.pdf.Rds")))
+    image_file <- paste0(stringr::str_extract(image, "[^/]+$"),".Rds")
+    expect_error(save_featureRDS(image_tt, file=image_file),
+                 regexp = NA)
+    expect_true(file.exists(image_file))
+    expect_error(image2_tt <- read_featureRDS(file=image_file),
+                 regexp = NA)
+    expect_equal(purrr::map(image2_tt,~.x$shape), purrr::map(image_tt,~.x$shape))
+    expect_equal(purrr::map(image2_tt,~.x$dtype), purrr::map(image_tt,~.x$dtype))
+  })
 })
 
 
