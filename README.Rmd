@@ -39,11 +39,13 @@ tokenization prerequisites, and relies on `{pdftools}` for digitally born pdfs, 
 install.packages("sentencepiece")
 ```
 
-## Example (Work in Progress)
+## Usage Example
 
 ![Side-by-side document ground truth and docformer prediction with superimposed color: red for title, blue for question, green for answer \label{Side-by-side ground truth and docformer prediction}](man/figure/README_result.jpg)
 
 This is a basic workflow to train a docformer model:
+
+### Turn a document into input tensor
 
 ```{r example}
 library(sentencepiece)
@@ -51,18 +53,27 @@ library(docformer)
 # get the corpus
 doc <- pins::pin("https://arxiv.org/pdf/2106.11539.pdf")
 
-# train a sentencepiece tokenizer
-doc_txt <- pdftools::pdf_text(doc)
-tmp <- tempfile()
-readr::write_lines(doc_txt, file=tmp)
-tok_model <- sentencepiece(tmp, type="bpe", vocab_size = 3000, verbose=T )
+# load a sentencepiece tokenizer and add a <mask> token if needed
+tok_model <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+tok_model$vocab_size <- tok_model$vocab_size+1L
+tok_model$vocabulary <- rbind(tok_model$vocabulary, data.frame(id=tok_model$vocab_size, subword="<mask>"))
 
 # turn the document into docformer input tensor
 doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
+```
 
+### Pretrain the model (Work in progress)
+A self-supervised training task can be run with
+
+```{r }
 # train a model from that tensor
-docformer_model <- docformer_pretrain(doc_tensor)
+# docformer_model <- docformer_pretrain(doc_tensor, epochs=30)
 
 ```
 
+### Train the model (work in progress)
+followed by a supervised raining task on annotated documents
+```{r}
+# docformer_model <- docformer_fit(doc_tensor, from_model=docformer_model, epochs=30)
+```
 

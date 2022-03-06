@@ -32,26 +32,59 @@ You can install the development version of docformer like so:
 ``` r
 # install.packages("remotes")
 remotes::install_github("cregouby/docformer")
-#> Skipping install of 'docformer' from a github remote, the SHA1 (58b3f1c2) has not changed since last install.
-#>   Use `force = TRUE` to force installation
+#> Downloading GitHub repo cregouby/docformer@HEAD
+#> 
+#> * checking for file ‘/tmp/RtmpwQw1Qo/remotesd972d1f1ce550/cregouby-docformer-f86c8e1/DESCRIPTION’ ... OK
+#> * preparing ‘docformer’:
+#> * checking DESCRIPTION meta-information ... OK
+#> * checking for LF line-endings in source and make files and shell scripts
+#> * checking for empty or unneeded directories
+#> * building ‘docformer_0.1.0.tar.gz’
+#> Installation du package dans '/tmp/Rtmpngo7rO/temp_libpath30e360d20857f'
+#> (car 'lib' n'est pas spécifié)
+#> Adding 'docformer_0.1.0_R_x86_64-pc-linux-gnu.tar.gz' to the cache
 ```
 
 docformer currently supports the `{sentencepiece}` package for
-tokenization prerequisites, and relies on `{pdftools}` for digitally born pdfs, and `{sentencepiece}`
+tokenization prerequisites, and relies on `{pdftools}` for digitally
+born pdfs, and `{tesseract}` with `{magick}` for OCR documents.
 
 ``` r
 install.packages("sentencepiece")
+#> Installation du package dans '/tmp/Rtmpngo7rO/temp_libpath30e360d20857f'
+#> (car 'lib' n'est pas spécifié)
 ```
 
-## Example (Work in progress)
+## Usage Example
 
 ![Side-by-side document ground truth and docformer prediction with
 superimposed color: red for title, blue for question, green for answer
 ](man/figure/README_result.jpg)
 
+This is a basic workflow to train a docformer model:
+
+### Turn a document into input tensor
 
 ``` r
 library(sentencepiece)
 library(docformer)
-## basic example code
+# get the corpus
+doc <- pins::pin("https://arxiv.org/pdf/2106.11539.pdf")
+
+# load a sentencepiece tokenizer and add a <mask> token if needed
+tok_model <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+tok_model$vocab_size <- tok_model$vocab_size+1L
+tok_model$vocabulary <- rbind(tok_model$vocabulary, data.frame(id=tok_model$vocab_size, subword="<mask>"))
+
+# turn the document into docformer input tensor
+doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
+```
+
+### Pretrain the model (Work in progress)
+
+A self-supervised training can be run with
+
+``` r
+# train a model from that tensor
+# docformer_model <- docformer_pretrain(doc_tensor)
 ```
