@@ -16,9 +16,9 @@ create_features_from_docbank(
 )
 }
 \arguments{
-\item{text_path}{file path or filename to DocBank_500K_txt}
+\item{text_path}{file path or filenames to DocBank_500K_txt}
 
-\item{image_path}{file path or filename to the matching DocBank_500K_ori_img}
+\item{image_path}{file path or filenames to the matching DocBank_500K_ori_img}
 
 \item{tokenizer}{tokenizer function to apply to words extracted from image. Currently,
 {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.}
@@ -49,8 +49,8 @@ sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentenc
 sent_tok$vocab_size <- sent_tok$vocab_size+1L
 sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
 # turn pdf into feature
-text_path <- system.file(package="docformer", "inst", "DocBank_500K_txt")
-image_path <- system.file(package="docformer", "inst", "DocBank_500K_ori_img")
-docbanks_tt <- create_features_from_doc(doc, tokenizer=sent_tok)
+text_path <- system.file(package="docformer", "DocBank_500K_txt")
+image_path <- system.file(package="docformer", "DocBank_500K_ori_img")
+docbanks_tt <- create_features_from_docbank(text_path, image_path, tokenizer=sent_tok)
 
 }

@@ -47,7 +47,7 @@ apply_ocr <- function(image) {
            bb = bbox %>% stringr::str_split(",") %>% purrr::map(as.integer)) %>%
     tidyr::unnest_wider(bb, names_sep="_") %>%
     dplyr::filter(!poor_word) %>%
-    dplyr::select(word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
+    dplyr::select(text=word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
   return(ocr_df)
 }
 
@@ -132,7 +132,7 @@ apply_ocr <- function(image) {
                                   y_max_d = rep(0,max_seq_len),
                                   x_center_d = rep(0,max_seq_len),
                                   y_center_d = rep(0,max_seq_len),
-                                  word = NA_character_,
+                                  text = NA_character_,
                                   idx = list(0),
                                   prior=TRUE)
 
@@ -204,7 +204,7 @@ create_features_from_image <- function(image,
       x_center_d = dplyr::lead(x_center) - x_center,
       y_center_d = dplyr::lead(y_center) - y_center,
       # step 4 tokenize words into `idx` and get their bbox
-      idx = .tokenize(tokenizer, word)) %>%
+      idx = .tokenize(tokenizer, text)) %>%
     dplyr::select(-confidence, -x_center, -y_center) %>%
     tidyr::replace_na(list("", rep(0, 13)))
 
@@ -286,29 +286,20 @@ create_features_from_doc <- function(doc,
   mask_id <- .mask_id(tokenizer)
   # step 1 read document and its attributes
   w_h <- pdftools::pdf_pagesize(doc)
-  if (nrow(w_h)>1 & (var(w_h$width) > 0 | var(w_h$height) > 0)) {
-    rlang::abort("Multi-size page document is not supported yet")
-  }
-
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
-  scale_w <- mean(target_w_h[1] /  w_h$width)
-  scale_h <- mean(target_w_h[2] / w_h$height)
-  CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+  scale_w <- target_w_h[1] / w_h$width
+  scale_h <- target_w_h[2] / w_h$height
+  CLS_TOKEN_BOX <- c(0, 0, min(w_h$width), min(w_h$height))   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
 
-  # step 2: resize image
-  # one page
-  # resized_image <- magick::image_resize(magick::image_read(pdftools::pdf_render_page(doc, numeric=F, page = 1)), geometry=target_geometry)
-
-  # step 3 extract text throuhg OCR and normalize bbox to target geometry
-  # TODO need to transform to lmap with the list(pdftools::pdf_data(doc), scale_w, scale_h) as arguments of an external function
-  encoding <-  purrr::map(pdftools::pdf_data(doc),
-                          ~.x %>% dplyr::mutate(
+  # step 3 extract text
+  encoding <-  purrr::pmap(list(pdftools::pdf_data(doc), as.list(scale_w), as.list(scale_h)),
+                          ~..1 %>% dplyr::mutate(
                             # step 10 normalize the bbox
-                            xmin = round( x * scale_w),
-                            ymin = round( y * scale_h),
-                            xmax = round((x + width) * scale_w),
-                            ymax = round((y + height) * scale_h),
+                            xmin = round( x * ..2),
+                            ymin = round( y * ..3),
+                            xmax = round((x + width) * ..2),
+                            ymax = round((y + height) * ..3),
                             x_center = round((xmin + xmax )/2),
                             y_center = round((ymin + ymax )/2),
                             # step 11 add relative spatial features
@@ -335,7 +326,7 @@ create_features_from_doc <- function(doc,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len) %>% dplyr::rename(text=word))
+                             dplyr::bind_rows(.empty_encoding(max_seq_len))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
@@ -356,7 +347,7 @@ create_features_from_doc <- function(doc,
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
-  # step 8 normlize the image
+  # step 2 + 8 resize and normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
@@ -374,8 +365,8 @@ create_features_from_doc <- function(doc,
 }
 #' Turn DocBanks dataset into docformer torch tensor input feature
 #'
-#' @param text_path file path or filename to DocBank_500K_txt
-#' @param image_path file path or filename to the matching DocBank_500K_ori_img
+#' @param text_path file path or filenames to DocBank_500K_txt
+#' @param image_path file path or filenames to the matching DocBank_500K_ori_img
 #' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
 #'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
 #' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
@@ -395,9 +386,9 @@ create_features_from_doc <- function(doc,
 #' sent_tok$vocab_size <- sent_tok$vocab_size+1L
 #' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
 #' # turn pdf into feature
-#' text_path <- system.file(package="docformer", "inst", "DocBank_500K_txt")
-#' image_path <- system.file(package="docformer", "inst", "DocBank_500K_ori_img")
-#' docbanks_tt <- create_features_from_doc(doc, tokenizer=sent_tok)
+#' text_path <- system.file(package="docformer", "DocBank_500K_txt")
+#' image_path <- system.file(package="docformer", "DocBank_500K_ori_img")
+#' docbanks_tt <- create_features_from_docbank(text_path, image_path, tokenizer=sent_tok)
 #'
 create_features_from_docbank <- function(text_path,
                                      image_path,
@@ -409,53 +400,57 @@ create_features_from_docbank <- function(text_path,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
-  # turn both file_path into file list if actual path
-  if (file.info(text_path)$is.path==TRUE & file.info(image_path)$is.path==TRUE ) {
-    text_path <- list.files(text_path, full.names = TRUE, recursive = TRUE)
-    image_path <- list.files(image_path, full.names = TRUE, recursive = TRUE)
-  } else if (file.info(text_path)$is.path==FALSE & file.info(image_path)$is.path==FALSE ) {
-
+  txt_col_names <- c("text", "xmin", "ymin", "xmax", "ymax", "font", "class")
+  # turn both file_path into file_name vector
+  if (is_path(text_path) & is_path(image_path)) {
+    # list all files in each path
+    text_files <- list.files(text_path, full.names = TRUE, recursive = TRUE)
+    image_path <- text_files %>%
+      stringr::str_replace(text_path, image_path) %>%
+      stringr::str_replace("\\.txt$", "_ori.jpg")
+    text_path <- text_files
+  } else if (!is_file_list(text_path) | !is_file_list(image_path) ) {
+    rlang::abort("text_path is not consistant with image_path. Please review their values")
   }
+
   # step 1 read images and its attributes
-  w_h <- pdftools::pdf_pagesize(doc)
-  if (nrow(w_h)>1 & (var(w_h$width) > 0 | var(w_h$height) > 0)) {
-    rlang::abort("Multi-size page document is not supported yet")
-  }
-
+  original_image <- purrr::map(image_path, magick::image_read)
+  w_h <- purrr::map_dfr(original_image, magick::image_info)
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
-  scale_w <- mean(target_w_h[1] /  w_h$width)
-  scale_h <- mean(target_w_h[2] / w_h$height)
-  CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
 
-  # step 2: resize image
-  # one page
-  # resized_image <- magick::image_resize(magick::image_read(pdftools::pdf_render_page(doc, numeric=F, page = 1)), geometry=target_geometry)
+  # image will be crop to reach alignement
 
-  # step 3 extract text throuhg OCR and normalize bbox to target geometry
+  crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
+  scale_w <- target_w_h[1] / w_h$width
+  scale_h <- target_w_h[2] / w_h$height
+  CLS_TOKEN_BOX <- c(0, 0, min(w_h$width), min(w_h$height))   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+
+  # step 3 extract text
   # TODO need to transform to lmap with the list(pdftools::pdf_data(doc), scale_w, scale_h) as arguments of an external function
-  encoding <-  purrr::map(pdftools::pdf_data(doc),
-                          ~.x %>% dplyr::mutate(
-                            # step 10 normalize the bbox
-                            xmin = round( x * scale_w),
-                            ymin = round( y * scale_h),
-                            xmax = round((x + width) * scale_w),
-                            ymax = round((y + height) * scale_h),
-                            x_center = round((xmin + xmax )/2),
-                            y_center = round((ymin + ymax )/2),
-                            # step 11 add relative spatial features
-                            x_width = xmax - xmin,
-                            y_height = ymax - ymin,
-                            x_min_d = dplyr::lead(xmin) - xmin,
-                            y_min_d = dplyr::lead(ymin) - ymin,
-                            x_max_d = dplyr::lead(xmax) - xmin,
-                            y_max_d = dplyr::lead(ymax) - ymin,
-                            x_center_d = dplyr::lead(x_center) - x_center,
-                            y_center_d = dplyr::lead(y_center) - y_center,
-                            # step 4 tokenize words into `idx` and get their bbox
-                            idx = .tokenize(tokenizer, text)) %>%
-                            dplyr::select(-x_center, -y_center) %>%
-                            tidyr::replace_na(list("", rep(0, 13))))
+  encoding <-  purrr::pmap(list(as.list(text_path), as.list(scale_w), as.list(scale_h)),
+                           ~readr::read_tsv(..1, col_types = "cdddd--cc", col_names = txt_col_names) %>%
+                             dplyr::mutate(
+                               # step 10 normalize the bbox
+                               xmin = round(xmin * ..2),
+                               ymin = round(ymin * ..3),
+                               xmax = round(xmax * ..2),
+                               ymax = round(ymax * ..3),
+                               x_center = round((xmin + xmax )/2),
+                               y_center = round((ymin + ymax )/2),
+                               # step 11 add relative spatial features
+                               x_width = xmax - xmin,
+                               y_height = ymax - ymin,
+                               x_min_d = dplyr::lead(xmin) - xmin,
+                               y_min_d = dplyr::lead(ymin) - ymin,
+                               x_max_d = dplyr::lead(xmax) - xmin,
+                               y_max_d = dplyr::lead(ymax) - ymin,
+                               x_center_d = dplyr::lead(x_center) - x_center,
+                               y_center_d = dplyr::lead(y_center) - y_center,
+                               # step 4 tokenize words into `idx` and get their bbox
+                               idx = .tokenize(tokenizer, text)) %>%
+                             dplyr::select(-x_center, -y_center) %>%
+                             tidyr::replace_na(list("", rep(0, 13))))
 
   mask_for_mlm <- if (apply_mask_for_mlm) {
     purrr::map(encoding, ~runif(n=nrow(.x))>0.15)
@@ -467,7 +462,7 @@ create_features_from_docbank <- function(text_path,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len) %>% dplyr::rename(text=word))
+                             dplyr::bind_rows(.empty_encoding(max_seq_len))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
@@ -489,7 +484,8 @@ create_features_from_docbank <- function(text_path,
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # step 8 normlize the image
-  image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
+  image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
+                                           magick::image_crop(crop_geometry, gravity="CenterGravity")
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
