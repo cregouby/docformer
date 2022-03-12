@@ -26,7 +26,7 @@ docformer_config(
 )
 }
 \arguments{
-\item{coordinate_size}{(int): Output size  of each coordinate embedding (default 96)}
+\item{coordinate_size}{(int): Output size of each coordinate embedding (default 96)}
 
 \item{shape_size}{(int): Output size of each position embedding (default 96)}
 

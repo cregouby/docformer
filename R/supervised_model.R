@@ -1,6 +1,6 @@
 #' Configuration for Docformer models
 #'
-#' @param coordinate_size (int): Output size  of each coordinate embedding (default 96)
+#' @param coordinate_size (int): Output size of each coordinate embedding (default 96)
 #' @param shape_size (int): Output size of each position embedding (default 96)
 #' @param hidden_dropout_prob (float): Dropout probability in docformer_encoder block (default 0.1)
 #' @param hidden_size (int): Size of the hidden layer in common with text embedding and positional embedding (default 768)
@@ -68,3 +68,159 @@ docformer_config <- function(coordinate_size = 96L,
   )
 
 }
+
+#' Docformer model
+#'
+#' Fits the [DocFormer: End-to-End Transformer for Document Understanding](https://arxiv.org/abs/2106.11539) model
+#'
+#' @param x Depending on the context:
+#'
+#'   * A __image__ filename.
+#'   * A __document__ filename.
+#'   * A __folder__ containing either images or documents.
+#'
+#'  The model currently support for __image__ any image type that `{magick}` package can read.
+#'  The model currently support for __document__ any pdf type that `{pdftool}` package can read.
+#'
+#' @param y A __data frame__
+#' @param docformer_model A previously fitted DocFormer model object to continue the fitting on.
+#'  if `NULL` (the default) a brand new model is initialized.
+#' @param config A set of hyperparameters created using the `docformer_config` function.
+#'  If no argument is supplied, this will use the default values in [docformer_config()].
+#' @param from_epoch When a `docformer_model` is provided, restore the network weights from a specific epoch.
+#'  Default is last available checkpoint for restored model, or last epoch for in-memory model.
+#' @param ... Model hyperparameters.
+#' Any hyperparameters set here will update those set by the config argument.
+#' See [docformer_config()] for a list of all possible hyperparameters.
+#'
+#' @section Fitting a pre-trained model:
+#'
+#' When providing a parent `docformer_model` parameter, the model fitting resumes from that model weights
+#' at the following epoch:
+#'    * last fitted epoch for a model already in torch context
+#'    * Last model checkpoint epoch for a model loaded from file
+#'    * the epoch related to a checkpoint matching or preceding the `from_epoch` value if provided
+#' The model fitting metrics append on top of the parent metrics in the returned TabNet model.
+#'
+#' @examples
+#' @return A DocFormer model object of class `docformer_fit` It can be used for serialization, predictions, or further fitting.
+#'
+#' @export
+docformer_fit <- function(x, ...) {
+  UseMethod("docformer_fit")
+}
+#' @export
+#' @rdname tabnet_fit
+docformer_fit.default <- function(x, ...) {
+  stop(
+    "`docformer_fit()` is not defined for a '", class(x)[1], "'.",
+    call. = FALSE
+  )
+}
+
+#' @export
+#' @rdname docformer_fit
+# docformer_fit.character <- function(x, ...) {
+#   if (file.exists(x)) {
+#     mime <- mime::guess_type(x)
+#     if (stringr::str_detect(mime, "image/")) {
+#       docformer_fit_image(x, ...)
+#     }
+#     if (stringr::str_detect(mime, "/pdf$")) {
+#       docformer_fit_pdf(x, ...)
+#     } else {
+#     if (file.info(x)$isdir) {
+#       file_lst <- list.files(x, recursive = T, full.names = T)
+#       purrr::map(file_lst, docformer_fit)
+#
+#     }
+#     } else {
+#       rlang::abort("file type of ",x," is not suported")
+#     }
+#   }
+# }
+#
+#' @importFrom stats predict
+#' @export
+predict.docformer_fit <- function(object, new_data, type = NULL, ..., epoch = NULL) {
+
+}
+
+#' @export
+print.docformer_fit <- function(x, ...) {
+  if (check_net_is_empty_ptr(x)) {
+    print(reload_model(x$serialized_net))
+  } else {
+    print(x$fit$network)
+  }
+  invisible(x)
+}
+#' @export
+print.docformer_pretrain <- print.docformer_fit
+
+# docformer_initialize <- function(x, y, config = tabnet_config()){
+#   has_valid <- config$valid_split > 0
+#
+#   if (config$device == "auto") {
+#     if (torch::cuda_is_available()){
+#       device <- "cuda"
+#     } else {
+#       device <- "cpu"
+#     }
+#   } else {
+#     device <- config$device
+#   }
+#
+#   # simplify y into vector
+#   if (!is.atomic(y)) {
+#     # currently not supporting multilabel
+#     y <- y[[1]]
+#   }
+#
+#   if (has_valid) {
+#     n <- nrow(x)
+#     valid_idx <- sample.int(n, n*config$valid_split)
+#     valid_x <- x[valid_idx, ]
+#     valid_y <- y[valid_idx]
+#     train_y <- y[-valid_idx]
+#     valid_ds <-   torch::dataset(
+#       initialize = function() {},
+#       .getbatch = function(batch) {resolve_data(valid_x[batch,], valid_y[batch], device=device)},
+#       .length = function() {nrow(valid_x)}
+#     )()
+#     x <- x[-valid_idx, ]
+#     y <- train_y
+#   }
+#
+#   # training dataset
+#   train_ds <-   torch::dataset(
+#     initialize = function() {},
+#     .getbatch = function(batch) {resolve_data(x[batch,], y[batch], device=device)},
+#     .length = function() {nrow(x)}
+#   )()
+#   # we can get training_set parameters from the 2 first samples
+#   train <- train_ds$.getbatch(batch = c(1:2))
+#
+#   # resolve loss
+#   config$loss_fn <- resolve_loss(config$loss, train$y$dtype)
+#
+#   # create network
+#   network <- docformer(config)
+#
+#   # main loop
+#   metrics <- list()
+#   checkpoints <- list()
+#
+#   list(
+#     network = network,
+#     metrics = metrics,
+#     config = config,
+#     checkpoints = checkpoints
+#   )
+# }
+
+
+
+# docformer_train_supervised <- function(data_loader, model, criterion, optimizer, epoch, device, scheduler=None){
+#
+# }
