@@ -14,7 +14,10 @@
 #' @param pad_token_id (int): Id of the padding token
 #' @param vocab_size (int): Length of the vocabulary
 #' @param layer_norm_eps (float): Epsilon value used in normalisation layer (default 1e-12)
-#' @param batch_size (int): Size of the batch (default 7)
+#' @param batch_size (int): Size of the batch.
+#' @param loss (character or function) Loss function for training (default to mse
+#'   for regression and cross entropy for classification)
+#' @param epochs (int) Number of training epochs.
 #' @param pretraining_ratio (float): Ratio of features to mask for reconstruction during
 #'   pretraining.  Ranges from 0 to 1 (default=0.5)
 #' @param verbose (bool): Whether to print progress and loss values during
@@ -42,6 +45,8 @@ docformer_config <- function(coordinate_size = 96L,
                              vocab_size = 30522L,
                              layer_norm_eps = 1e-12,
                              batch_size = 9L,
+                             loss = "auto",
+                             epochs = 5,
                              pretraining_ratio = 0.5,
                              verbose = FALSE,
                              device = "auto"
@@ -110,7 +115,7 @@ docformer_fit <- function(x, ...) {
   UseMethod("docformer_fit")
 }
 #' @export
-#' @rdname tabnet_fit
+#' @rdname docformer_fit
 docformer_fit.default <- function(x, ...) {
   stop(
     "`docformer_fit()` is not defined for a '", class(x)[1], "'.",
@@ -120,25 +125,25 @@ docformer_fit.default <- function(x, ...) {
 
 #' @export
 #' @rdname docformer_fit
-# docformer_fit.character <- function(x, ...) {
-#   if (file.exists(x)) {
-#     mime <- mime::guess_type(x)
-#     if (stringr::str_detect(mime, "image/")) {
-#       docformer_fit_image(x, ...)
-#     }
-#     if (stringr::str_detect(mime, "/pdf$")) {
-#       docformer_fit_pdf(x, ...)
-#     } else {
-#     if (file.info(x)$isdir) {
-#       file_lst <- list.files(x, recursive = T, full.names = T)
-#       purrr::map(file_lst, docformer_fit)
-#
-#     }
-#     } else {
-#       rlang::abort("file type of ",x," is not suported")
-#     }
-#   }
-# }
+docformer_fit.docformer_tensor <- function(x, config = docformer_config(), ...) {
+  # assemble config and ...
+  default_config <- docformer_config()
+  new_config <- do.call(docformer_config, list(...))
+  new_config <- new_config[
+    mapply(
+      function(x, y) ifelse(is.null(x), !is.null(y), x != y),
+      default_config,
+      new_config)
+  ]
+  config <- utils::modifyList(config, as.list(new_config))
+  # luz training
+  docformer %>%
+    luz::setup(
+      loss = nn_mse_loss(),
+      optimizer = optim_adam
+    ) %>%
+    luz::fit(x, epochs = 1)
+}
 #
 #' @importFrom stats predict
 #' @export

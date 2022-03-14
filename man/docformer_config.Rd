@@ -20,6 +20,8 @@ docformer_config(
   vocab_size = 30522L,
   layer_norm_eps = 1e-12,
   batch_size = 9L,
+  loss = "auto",
+  epochs = 5,
   pretraining_ratio = 0.5,
   verbose = FALSE,
   device = "auto"
@@ -54,7 +56,12 @@ docformer_config(
 
 \item{layer_norm_eps}{(float): Epsilon value used in normalisation layer (default 1e-12)}
 
-\item{batch_size}{(int): Size of the batch (default 7)}
+\item{batch_size}{(int): Size of the batch.}
+
+\item{loss}{(character or function) Loss function for training (default to mse
+for regression and cross entropy for classification)}
+
+\item{epochs}{(int) Number of training epochs.}
 
 \item{pretraining_ratio}{(float): Ratio of features to mask for reconstruction during
 pretraining.  Ranges from 0 to 1 (default=0.5)}

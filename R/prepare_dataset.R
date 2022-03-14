@@ -247,10 +247,12 @@ create_features_from_image <- function(image,
     list(x_features=x_features, y_features=y_features, text=text, image=image)
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }
-' Turn document into docformer torch tensor input feature
+#' Turn document into docformer torch tensor input feature
 #'
 #' @param doc file path, url, or raw vector to document (currently pdf only)
 #' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
@@ -364,6 +366,8 @@ create_features_from_doc <- function(doc,
     list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }
@@ -499,6 +503,8 @@ create_features_from_docbank <- function(text_path,
     list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }
