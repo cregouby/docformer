@@ -354,7 +354,7 @@ create_features_from_doc <- function(doc,
   # step 2 + 8 resize and normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            # using  Gravity "NorthWestGravity" ensure no shift in x & y
-                                           magick::image_crop(crop_geometry, gravity = "NorthWestGravity") %>%
+                                           magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
@@ -491,7 +491,7 @@ create_features_from_docbank <- function(text_path,
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            # using  Gravity "NorthWestGravity" ensure no shift in x & y
-                                           magick::image_crop(crop_geometry, gravity = "NorthWestGravity") %>%
+                                           magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
