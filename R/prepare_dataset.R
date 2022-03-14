@@ -284,10 +284,12 @@ create_features_from_doc <- function(doc,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
+
   # step 1 read document and its attributes
   w_h <- pdftools::pdf_pagesize(doc)
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
+  crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
   CLS_TOKEN_BOX <- c(0, 0, min(w_h$width), min(w_h$height))   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
@@ -349,6 +351,8 @@ create_features_from_doc <- function(doc,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # step 2 + 8 resize and normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
+                                           # using  Gravity "NorthWestGravity" ensure no shift in x & y
+                                           magick::image_crop(crop_geometry, gravity = "NorthWestGravity") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
@@ -418,9 +422,6 @@ create_features_from_docbank <- function(text_path,
   w_h <- purrr::map_dfr(original_image, magick::image_info)
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
-
-  # image will be crop to reach alignement
-
   crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
@@ -485,7 +486,8 @@ create_features_from_docbank <- function(text_path,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
-                                           magick::image_crop(crop_geometry, gravity="CenterGravity")
+                                           # using  Gravity "NorthWestGravity" ensure no shift in x & y
+                                           magick::image_crop(crop_geometry, gravity = "NorthWestGravity") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging

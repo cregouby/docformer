@@ -15,4 +15,4 @@ image <- system.file(package="docformer", "inst", "2106.11539_1.png")
 doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
 
 # Run after all tests
-withr::defer(teardown_env())
+withr::defer(testthat::teardown_env())
