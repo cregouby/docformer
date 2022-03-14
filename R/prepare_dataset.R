@@ -247,10 +247,12 @@ create_features_from_image <- function(image,
     list(x_features=x_features, y_features=y_features, text=text, image=image)
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }
-' Turn document into docformer torch tensor input feature
+#' Turn document into docformer torch tensor input feature
 #'
 #' @param doc file path, url, or raw vector to document (currently pdf only)
 #' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
@@ -360,6 +362,8 @@ create_features_from_doc <- function(doc,
     list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }
@@ -485,7 +489,7 @@ create_features_from_docbank <- function(text_path,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
-                                           magick::image_crop(crop_geometry, gravity="CenterGravity")
+                                           magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>% 
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
@@ -497,6 +501,8 @@ create_features_from_docbank <- function(text_path,
     list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
 
 }

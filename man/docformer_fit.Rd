@@ -2,12 +2,15 @@
 % Please edit documentation in R/supervised_model.R
 \name{docformer_fit}
 \alias{docformer_fit}
-\alias{predict.docformer_fit}
+\alias{docformer_fit.default}
+\alias{docformer_fit.docformer_tensor}
 \title{Docformer model}
 \usage{
 docformer_fit(x, ...)
 
-\method{predict}{docformer_fit}(object, new_data, type = NULL, ..., epoch = NULL)
+\method{docformer_fit}{default}(x, ...)
+
+\method{docformer_fit}{docformer_tensor}(x, config = docformer_config(), ...)
 }
 \arguments{
 \item{x}{Depending on the context:
@@ -24,13 +27,13 @@ The model currently support for \strong{document} any pdf type that \code{{pdfto
 Any hyperparameters set here will update those set by the config argument.
 See \code{\link[=docformer_config]{docformer_config()}} for a list of all possible hyperparameters.}
 
+\item{config}{A set of hyperparameters created using the \code{docformer_config} function.
+If no argument is supplied, this will use the default values in \code{\link[=docformer_config]{docformer_config()}}.}
+
 \item{y}{A \strong{data frame}}
 
 \item{docformer_model}{A previously fitted DocFormer model object to continue the fitting on.
 if \code{NULL} (the default) a brand new model is initialized.}
-
-\item{config}{A set of hyperparameters created using the \code{docformer_config} function.
-If no argument is supplied, this will use the default values in \code{\link[=docformer_config]{docformer_config()}}.}
 
 \item{from_epoch}{When a \code{docformer_model} is provided, restore the network weights from a specific epoch.
 Default is last available checkpoint for restored model, or last epoch for in-memory model.}

@@ -32,7 +32,10 @@ test_that("create_features_from_image works with default values", {
   # sentencepiece
   expect_error(image_tt <- create_features_from_image(image, sent_tok_mask),
                regexp = NA)
+  # class, shape and type
   expect_type(image_tt, "list")
+  expect_s3_class(image_tt,"docformer_tensor")
+  expect_equal(attr(image_tt, "max_seq_len"), 512L)
   expect_length(image_tt, 4)
   expect_equal(image_tt$x_features$shape, c(1, 512, 6))
   expect_equal(image_tt$y_features$shape, c(1, 512, 6))
@@ -56,6 +59,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_error(page1_tt <- create_features_from_doc("2106.11539_1.pdf", sent_tok_mask),
                regexp = NA)
   expect_type(page1_tt, "list")
+  expect_s3_class(page1_tt,"docformer_tensor")
+  expect_equal(attr(page1_tt, "max_seq_len"), 512L)
   expect_length(page1_tt, 4)
   expect_equal(page1_tt$x_features$shape, c(1, 512, 6))
   expect_equal(page1_tt$y_features$shape, c(1, 512, 6))
@@ -76,6 +81,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_error(doc_tt <- create_features_from_doc(doc, sent_tok_mask),
                regexp = NA)
   expect_type(doc_tt, "list")
+  expect_s3_class(doc_tt,"docformer_tensor")
+  expect_equal(attr(doc_tt, "max_seq_len"), 512L)
   expect_length(doc_tt, 4)
   expect_equal(doc_tt$x_features$shape, c(2, 512, 6))
   expect_equal(doc_tt$y_features$shape, c(2, 512, 6))
