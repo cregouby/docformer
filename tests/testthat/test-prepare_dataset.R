@@ -103,7 +103,8 @@ test_that("features properly save to disk and can be restored", {
     expect_error(doc2_tt <- read_featureRDS(file=doc_file),
                  regexp = NA)
     expect_equal(purrr::map(doc2_tt,~.x$shape), purrr::map(doc_tt,~.x$shape))
-    expect_equal(purrr::map(doc2_tt,~.x$dtype), purrr::map(doc_tt,~.x$dtype))
+    expect_equal(purrr::map_chr(doc2_tt,~.x$dtype %>% as.character), 
+                 purrr::map_chr(doc_tt,~.x$dtype %>% as.character))
 
     image_file <- paste0(stringr::str_extract(image, "[^/]+$"),".Rds")
     expect_error(save_featureRDS(image_tt, file=image_file),
@@ -112,7 +113,8 @@ test_that("features properly save to disk and can be restored", {
     expect_error(image2_tt <- read_featureRDS(file=image_file),
                  regexp = NA)
     expect_equal(purrr::map(image2_tt,~.x$shape), purrr::map(image_tt,~.x$shape))
-    expect_equal(purrr::map(image2_tt,~.x$dtype), purrr::map(image_tt,~.x$dtype))
+    expect_equal(purrr::map_chr(image2_tt,~.x$dtype %>% as.character),
+                 purrr::map_chr(image_tt,~.x$dtype %>% as.character))
   })
 })
 
