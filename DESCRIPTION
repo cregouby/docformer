@@ -23,7 +23,8 @@ Imports:
     methods,
     tibble,
     coro,
-    vctrs
+    vctrs,
+    torchvision (>= 0.4.1.9000)
 Suggests: 
     testthat (>= 3.0.0),
     modeldata,
@@ -44,3 +45,5 @@ Suggests:
     workflows
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Remotes:  
+    mlverse/torchvision

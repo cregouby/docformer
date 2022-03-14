@@ -139,10 +139,11 @@ docformer_fit.docformer_tensor <- function(x, config = docformer_config(), ...) 
   # luz training
   docformer %>%
     luz::setup(
-      loss = nn_mse_loss(),
-      optimizer = optim_adam
+      loss = torch::nn_mse_loss(),
+      optimizer = torch::optim_adam
     ) %>%
-    luz::fit(x, epochs = 1)
+    luz::set_hparams(config = config) %>%
+    luz::fit(x, epochs = config$epoch)
 }
 #
 #' @importFrom stats predict
