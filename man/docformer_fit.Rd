@@ -13,15 +13,7 @@ docformer_fit(x, ...)
 \method{docformer_fit}{docformer_tensor}(x, config = docformer_config(), ...)
 }
 \arguments{
-\item{x}{Depending on the context:
-\itemize{
-\item A \strong{image} filename.
-\item A \strong{document} filename.
-\item A \strong{folder} containing either images or documents.
-}
-
-The model currently support for \strong{image} any image type that \code{{magick}} package can read.
-The model currently support for \strong{document} any pdf type that \code{{pdftool}} package can read.}
+\item{x}{a \code{docformer_tensor} list, as a result of the \verb{create_features_from_*} functions}
 
 \item{...}{Model hyperparameters.
 Any hyperparameters set here will update those set by the config argument.
@@ -30,7 +22,7 @@ See \code{\link[=docformer_config]{docformer_config()}} for a list of all possib
 \item{config}{A set of hyperparameters created using the \code{docformer_config} function.
 If no argument is supplied, this will use the default values in \code{\link[=docformer_config]{docformer_config()}}.}
 
-\item{y}{A \strong{data frame}}
+\item{y}{a \strong{data frame}}
 
 \item{docformer_model}{A previously fitted DocFormer model object to continue the fitting on.
 if \code{NULL} (the default) a brand new model is initialized.}

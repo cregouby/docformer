@@ -78,16 +78,8 @@ docformer_config <- function(coordinate_size = 96L,
 #'
 #' Fits the [DocFormer: End-to-End Transformer for Document Understanding](https://arxiv.org/abs/2106.11539) model
 #'
-#' @param x Depending on the context:
-#'
-#'   * A __image__ filename.
-#'   * A __document__ filename.
-#'   * A __folder__ containing either images or documents.
-#'
-#'  The model currently support for __image__ any image type that `{magick}` package can read.
-#'  The model currently support for __document__ any pdf type that `{pdftool}` package can read.
-#'
-#' @param y A __data frame__
+#' @param x a `docformer_tensor` list, as a result of the `create_features_from_*` functions
+#' @param y a __data frame__
 #' @param docformer_model A previously fitted DocFormer model object to continue the fitting on.
 #'  if `NULL` (the default) a brand new model is initialized.
 #' @param config A set of hyperparameters created using the `docformer_config` function.
@@ -139,10 +131,11 @@ docformer_fit.docformer_tensor <- function(x, config = docformer_config(), ...) 
   # luz training
   docformer %>%
     luz::setup(
-      loss = nn_mse_loss(),
-      optimizer = optim_adam
-    ) %>%
-    luz::fit(x, epochs = 1)
+      loss = torch::nn_mse_loss(),
+      optimizer = torch::optim_adam
+      ) %>%
+    luz::set_hparams(config=config) %>%
+    luz::fit(x, epochs = config$epoch)
 }
 #
 #' @importFrom stats predict

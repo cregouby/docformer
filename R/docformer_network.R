@@ -23,10 +23,10 @@ resnet_feature_extractor <- torch::nn_module(
     resnet50 <- torchvision::model_resnet50(pretrain=TRUE)
     modules <- torch::nn_module_list(resnet50$children)
     # extract resnet50 `layer 4`
-    self$resnet50 <- torch::nn_sequential(modules[1:(length(modules)-2)])
+    self$resnet50 <- torch::nn_sequential(modules$children[1:(length(modules)-2)])
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048,768,1)
-    self$relu1 <- torch::torch_relu()
+    self$relu1 <- torch::nn_relu()
     self$linear1 <- torch::nn_linear(192,512)
   },
   forward = function(x) {
