@@ -571,49 +571,6 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
   }
 )
 
-# TODO DANGER ZONE
-#' An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained models.
-LayoutLMPreTrainedModel <- torch::nn_module(
-  "PreTrainedModel",
-    #
-    # """
-    # An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
-    # models.
-    # """
-  initialize = function(PreTrainedModel) {
-    config_class <- LayoutLMConfig
-    pretrained_model_archive_map <-
-      LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST
-    base_model_prefix <- "layoutlm"
-    supports_gradient_checkpointing <- TRUE
-    keys_to_ignore_on_load_missing <- list("position_ids")
-  },
-  init_weights = function(module) {
-    if ("nn_linear" %in% class(module)) {
-      # Slightly different from the TF version which uses truncated_normal for initialization
-      # cf https:%/%github$com/pytorch/pytorch/pull/5617
-      module$weight$data$normal_(mean = 0.0,
-                                 std = self$config$initializer_range)
-      if (!is.null(module$bias)) {
-        module$bias$data$zero_()
-      }
-    } else if ("nn_embedding" %in% class(module)) {
-      module$weight$data$normal_(mean = 0.0,
-                                 std = self$config$initializer_range)
-      if (!is.null(module$padding_idx)) {
-        module$weight$data[module$padding_idx]$zero_()
-      }
-    } else if ("LayoutLMLayerNorm" %in% class(module)) {
-          module$bias$data$zero_()
-          module$weight$data$fill_(1.0)
-    }
-    set_gradient_checkpointing = function(module, value = FALSE) {
-      if ("LayoutLMEncoder" %in% class(module)) {
-        module$gradient_checkpointing <- value
-      }
-    }
-  }
-)
 
 #' The LayoutLM model was proposed in [LayoutLM: Pre-training of Text and Layout for Document ImageUnderstanding](https://arxiv.org/abs/1912.13318)
 #'  by Yiheng Xu, Minghao Li, Lei Cui, Shaohan Huang, Furu Wei and Ming Zhou.
@@ -1151,5 +1108,8 @@ LayoutLMForTokenClassification<- torch::nn_module(
         )
         class(result) <-  "TokenClassifierOutput"
         return(result)
+  },
+  from_pretrained = function(pretrained_model_name, config) {
+    .load_weights(self, pretrained_model_name)
   }
 )
