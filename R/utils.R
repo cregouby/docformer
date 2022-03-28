@@ -38,7 +38,7 @@ is_path <- function(fpath) {
 #' @keywords internal
 .download_weights <- function(model_name = "microsoft/layoutlm-base-uncased",
                               redownload = FALSE, timeout = 720) {
-  url <- weights_url_map[model_name]
+  url <- transformers_config[transformers_config$model_name==model_name,]$url
   dlr::set_app_cache_dir(appname = "layoutlm", cache_dir = "~/.cache/torch")
   return(
     withr::with_options(
@@ -49,6 +49,7 @@ is_path <- function(fpath) {
         process_f = .process_downloaded_weights,
         read_f = torch::torch_load,
         write_f = torch::torch_save,
+        write_args = list(use_new_zipfile_serialization=TRUE),
         force_process = redownload
       )
     )
@@ -63,10 +64,6 @@ is_path <- function(fpath) {
 #' @keywords internal
 .process_downloaded_weights <- function(temp_file) {
   state_dict <- torch::load_state_dict(temp_file)
-  # I think we always want to do the concatenation and name fixing, so just do
-  # that here.
-  state_dict <- .concatenate_qkv_weights(state_dict)
-  state_dict <- .rename_state_dict_variables(state_dict)
   return(state_dict)
 }
 
