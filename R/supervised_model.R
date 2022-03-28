@@ -3,6 +3,7 @@
 #' @param coordinate_size (int): Output size of each coordinate embedding (default 96)
 #' @param shape_size (int): Output size of each position embedding (default 96)
 #' @param hidden_dropout_prob (float): Dropout probability in docformer_encoder block (default 0.1)
+#' @param attention_dropout_prob (float): Dropout probability in docformer_attention block (default 0.1)
 #' @param hidden_size (int): Size of the hidden layer in common with text embedding and positional embedding (default 768)
 #' @param image_feature_pool_shape (vector of 3 int): Shqpe of the image feature pooling (default c(7,7,256))
 #' @param intermediate_ff_size_factor (int): Intermediate feed-forward layer expension factor (default 3)
@@ -34,6 +35,7 @@
 docformer_config <- function(coordinate_size = 96L,
                              shape_size = 96L,
                              hidden_dropout_prob = 0.1,
+                             attention_dropout_prob = 0.1,
                              hidden_size = 768L,
                              image_feature_pool_shape = c(7, 7, 256),
                              intermediate_ff_size_factor = 3L,  # default ought to be 4
@@ -56,6 +58,7 @@ docformer_config <- function(coordinate_size = 96L,
   list(
     coordinate_size = coordinate_size,
     hidden_dropout_prob = hidden_dropout_prob,
+    attention_dropout_prob = attention_dropout_prob,
     hidden_size = hidden_size,
     image_feature_pool_shape = image_feature_pool_shape,
     intermediate_ff_size_factor = intermediate_ff_size_factor,
@@ -72,7 +75,11 @@ docformer_config <- function(coordinate_size = 96L,
     batch_size = batch_size,
     pretraining_ratio = pretraining_ratio,
     verbose = verbose,
-    device = device
+    device = device,
+    is_decoder = FALSE,
+    intermediate_size = 3072L,
+    hidden_act = "gelu",
+    num_labels = 5L
   )
 
 }
