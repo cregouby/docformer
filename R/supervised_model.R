@@ -13,6 +13,7 @@
 #' @param num_hidden_layers (int): Number of hidden layers in the encoder
 #' @param pad_token_id (int): Id of the padding token
 #' @param vocab_size (int): Length of the vocabulary
+#' @param type_vocab_size (int): Length of the type vocabulary
 #' @param layer_norm_eps (float): Epsilon value used in normalisation layer (default 1e-12)
 #' @param batch_size (int): Size of the batch.
 #' @param loss (character or function) Loss function for training (default to mse
@@ -43,6 +44,7 @@ docformer_config <- function(coordinate_size = 96L,
                              num_hidden_layers = 12L,
                              pad_token_id = 1L,
                              vocab_size = 30522L,
+                             type_vocab_size = 2L,
                              layer_norm_eps = 1e-12,
                              batch_size = 9L,
                              loss = "auto",
@@ -65,6 +67,7 @@ docformer_config <- function(coordinate_size = 96L,
     pad_token_id = pad_token_id,
     shape_size = shape_size,
     vocab_size = vocab_size,
+    type_vocab_size = vocab_size,
     layer_norm_eps = layer_norm_eps,
     batch_size = batch_size,
     pretraining_ratio = pretraining_ratio,

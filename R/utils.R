@@ -39,7 +39,7 @@ is_path <- function(fpath) {
 .download_weights <- function(model_name = "microsoft/layoutlm-base-uncased",
                               redownload = FALSE, timeout = 720) {
   url <- weights_url_map[model_name]
-
+  dlr::set_app_cache_dir(appname = "layoutlm", cache_dir = "~/.cache/torch")
   return(
     withr::with_options(
       list(timeout = timeout),

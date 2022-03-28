@@ -22,7 +22,8 @@ LayoutLMEmbeddings <- torch::nn_module(
     self$LayerNorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
     self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
 
-    self$register_buffer("position_ids", torch::torch_arange(config$max_position_embeddings)$expand(c(1, -1)))
+    # self$register_buffer("position_ids", torch::torch_arange(config$max_position_embeddings)$expand(c(1, -1)))
+    self$position_ids <-  torch::torch_arange(start=1, end=config$max_position_embeddings)$expand(c(1, -1))
   },
   forward = function(
     input_ids=NULL,
@@ -406,7 +407,7 @@ LayoutLMEncoder <- torch::nn_module(
   "LayoutLMEncoder",
   initialize = function(config){
         self$config <- config
-        self$layer <- torch::nn_moduleList(rep(LayoutLMLayer(config),config$num_hidden_layers))
+        self$layer <- torch::nn_module_list(rep(LayoutLMLayer(config),config$num_hidden_layers))
         self$gradient_checkpointing <- FALSE
 
   },
@@ -1109,7 +1110,7 @@ LayoutLMForTokenClassification<- torch::nn_module(
         class(result) <-  "TokenClassifierOutput"
         return(result)
   },
-  from_pretrained = function(pretrained_model_name, config) {
+  from_pretrained = function(pretrained_model_name) {
     .load_weights(self, pretrained_model_name)
   }
 )
