@@ -85,17 +85,19 @@ is_path <- function(fpath) {
   # This will usually just fetch from the cache
   sd <- .download_weights(model_name = model_name, redownload = redownload)
 
-  my_sd <- model$state_dict()
-  my_weight_names <- names(my_sd)
-  saved_weight_names <- names(sd)
-  names_in_common <- intersect(my_weight_names, saved_weight_names)
-  if (length(names_in_common) > 0) {
-    my_sd[names_in_common] <- sd[names_in_common]
-  } else {
-    warning("No matching weight names found.") # nocov
-  }
-  model$load_state_dict(my_sd)
-  return(length(names_in_common)) # This function is for side effects.
+  # my_sd <- model$state_dict()
+  # my_weight_names <- names(my_sd)
+  # saved_weight_names <- names(sd)
+  # names_in_common <- intersect(my_weight_names, saved_weight_names)
+  # if (length(names_in_common) > 0) {
+  #   my_sd[names_in_common] <- sd[names_in_common]
+  # } else {
+  #   warning("No matching weight names found.") # nocov
+  # }
+  # model$load_state_dict(my_sd)
+  model$load_state_dict(sd)
+  # return(length(names_in_common)) # This function is for side effects.
+ # This function is for side effects.
 }
 
 

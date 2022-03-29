@@ -1,6 +1,12 @@
 test_that("LayoutLMForTokenClassification initialize works ", {
   config  <-  docformer_config()
   expect_error(layoutlm_net <- LayoutLMForTokenClassification(config), NA)
+  expect_s3_class(layoutlm_net, "LayoutLMPreTrainedModel")
+  expect_s3_class(layoutlm_net, "nn_module")
+  expect_true(torch::is_nn_module(layoutlm_net))
+  expect_true(torch::is_nn_module(layoutlm_net$embeddings))
+  expect_true(torch::is_nn_module(layoutlm_net$encoder))
+  expect_true(torch::is_nn_module(layoutlm_net$pooler))
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works ", {
