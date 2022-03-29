@@ -1122,6 +1122,6 @@ LayoutLMForTokenClassification<- torch::nn_module(
     return(result)
   },
   from_pretrained = function(pretrained_model_name) {
-    .load_weights(self, pretrained_model_name)
+    .load_weights(pretrained_model_name)
   }
 )
