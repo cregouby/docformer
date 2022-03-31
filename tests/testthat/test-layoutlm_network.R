@@ -4,9 +4,10 @@ test_that("LayoutLMForTokenClassification initialize works ", {
   expect_s3_class(layoutlm_net, "LayoutLMPreTrainedModel")
   expect_s3_class(layoutlm_net, "nn_module")
   expect_true(torch::is_nn_module(layoutlm_net))
-  expect_true(torch::is_nn_module(layoutlm_net$embeddings))
-  expect_true(torch::is_nn_module(layoutlm_net$encoder))
-  expect_true(torch::is_nn_module(layoutlm_net$pooler))
+  expect_true(torch::is_nn_module(layoutlm_net$layoutlm))
+  expect_true(torch::is_nn_module(layoutlm_net$layoutlm$embeddings))
+  expect_true(torch::is_nn_module(layoutlm_net$layoutlm$encoder))
+  expect_true(torch::is_nn_module(layoutlm_net$layoutlm$pooler))
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works ", {
