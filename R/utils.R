@@ -28,7 +28,6 @@ is_path <- function(fpath) {
 #' Download weights for this model to the torchtransformers cache, or load them
 #' if they're already downloaded.
 #'
-#' @inheritParams make_and_load_bert
 #' @param redownload Logical; should the weights be downloaded fresh even if
 #'   they're cached? This is not currently exposed to the end user, and exists
 #'   mainly so we can test more easily.
@@ -75,9 +74,9 @@ is_path <- function(fpath) {
 #'
 #' Loads specified pretrained weights into the given BERT model.
 #'
-#' @param model A transformers-type model, constructed using `model_bert`.
-#' @param model_name Character; which flavor of BERT to use. Must be compatible
-#'   with `model`!
+#' @param model A transformers-type `nn_module` model.
+#' @param model_name Character; which public Transformers model weights to use. Must be compatible
+#'   with `model` architecture!
 #' @param redownload
 #'
 #' @return The number of model parameters updated. (This is to enable error

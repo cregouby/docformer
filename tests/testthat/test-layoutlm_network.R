@@ -20,7 +20,8 @@ test_that("LayoutLMForTokenClassification from_pretrain works from local file", 
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works from public weights", {
-  skip_on
+  skip_on_cran()
+  skip_on_os("windows")
   config  <-  docformer_config()
   pretrained_model_name <- "allenai/hvila-row-layoutlm-finetuned-docbank"
   layoutlm_net <- LayoutLMForTokenClassification(config)
