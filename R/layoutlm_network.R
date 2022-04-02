@@ -18,10 +18,10 @@ LayoutLMEmbeddings <- torch::nn_module(
     self$h_position_embeddings <- torch::nn_embedding(config$max_2d_position_embeddings, config$hidden_size)
     self$w_position_embeddings <- torch::nn_embedding(config$max_2d_position_embeddings, config$hidden_size)
     self$token_type_embeddings <- torch::nn_embedding(config$type_vocab_size, config$hidden_size)
-    
+
     self$LayerNorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
     self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
-    
+
     # self$register_buffer("position_ids", torch::torch_arange(config$max_position_embeddings)$expand(c(1, -1)))
     self$position_ids <-  torch::torch_arange(start=1, end=config$max_position_embeddings)$expand(c(1, -1))
   },
@@ -38,32 +38,32 @@ LayoutLMEmbeddings <- torch::nn_module(
       input_shape <- inputs_embeds$shape[c(1:(inputs_embeds$ndim-1))]
     }
     seq_length <- input_shape[2]
-    
+
     device <- ifelse(!is.null(input_ids), input_ids$device, inputs_embeds$device)
-    
+
     if (is.null(position_ids)){
       position_ids <- self$position_ids[, 1:(seq_length-1)]
     }
-    
+
     if (is.null(token_type_ids)){
       token_type_ids <- torch::torch_zeros(input_shape, dtype=torch::torch_long(), device=device)
     }
-    
+
     if (is.null(inputs_embeds)){
       inputs_embeds <- self$word_embeddings(input_ids)
     }
-    
+
     words_embeddings <- inputs_embeds
     position_embeddings <- self$position_embeddings(position_ids)
     left_position_embeddings <- self$x_position_embeddings(bbox[, , 1])
     upper_position_embeddings <- self$y_position_embeddings(bbox[, , 2])
     right_position_embeddings <- self$x_position_embeddings(bbox[, , 3])
     lower_position_embeddings <- self$y_position_embeddings(bbox[, , 4])
-    
+
     h_position_embeddings <- self$h_position_embeddings(bbox[, , 4] - bbox[, , 2])
     w_position_embeddings <- self$w_position_embeddings(bbox[, , 3] - bbox[, , 1])
     token_type_embeddings <- self$token_type_embeddings(token_type_ids)
-    
+
     embeddings <- torch::torch_cat(
       words_embeddings,
       position_embeddings,
@@ -87,15 +87,15 @@ LayoutLMSelfAttention <- torch::nn_module(
   "LayoutLMSelfAttention",
   initialize = function(config, position_embedding_type=NULL){
     stopifnot("The config hidden size is not a multiple of the number of attention heads" = (config$hidden_size %% config$num_attention_heads == 0))
-    
+
     self$num_attention_heads <- config$num_attention_heads
     self$attention_head_size <- config$hidden_size %/% config$num_attention_heads
     self$all_head_size <- self$num_attention_heads * self$attention_head_size
-    
+
     self$query <- torch::nn_linear(config$hidden_size, self$all_head_size)
     self$key <- torch::nn_linear(config$hidden_size, self$all_head_size)
     self$value <- torch::nn_linear(config$hidden_size, self$all_head_size)
-    
+
     self$dropout <- torch::nn_dropout(p=config$attention_dropout_prob)
     # get first non null within position_embedding_type, config$position_embedding_type, "absolute"
     self$position_embedding_type <- (append(position_embedding_type,config$position_embedding_type) %>% append("absolute"))[[1]]
@@ -103,7 +103,7 @@ LayoutLMSelfAttention <- torch::nn_module(
       self$max_position_embeddings <- config$max_position_embeddings
       self$distance_embedding <- torch::nn_embedding(2 * config$max_position_embeddings - 1, self$attention_head_size)
     }
-    
+
     self$is_decoder <- config$is_decoder
   },
   transpose_for_scores = function(x){
@@ -112,7 +112,7 @@ LayoutLMSelfAttention <- torch::nn_module(
     x$permute(1, 3, 2, 4)
   },
   forward = function(
-    
+
     hidden_states,
     attention_mask=NULL,
     head_mask=NULL,
@@ -122,12 +122,12 @@ LayoutLMSelfAttention <- torch::nn_module(
     output_attentions=FALSE
   ){
     mixed_query_layer <- self$query(hidden_states)
-    
+
     # If this is instantiated as a cross-attention module, the keys
     # and values come from an encoder; the attention mask needs to be
     # such that the encoder's padding tokens are not attended to.
     is_cross_attention <- !is.null(encoder_hidden_states)
-    
+
     if (is_cross_attention & !is.null(past_key_value)){
       # reuse k,v, cross_attentions
       key_layer <- past_key_value[1]
@@ -146,9 +146,9 @@ LayoutLMSelfAttention <- torch::nn_module(
       key_layer <- self$transpose_for_scores(self$key(hidden_states))
       value_layer <- self$transpose_for_scores(self$value(hidden_states))
     }
-    
+
     query_layer <- self$transpose_for_scores(mixed_query_layer)
-    
+
     if (self$is_decoder){
       # if cross_attention save Tuple(torch::torch_Tensor, torch::torch_Tensor) of all cross attention key/value_states.
       # Further calls to cross_attention layer can then reuse all cross-attention
@@ -161,7 +161,7 @@ LayoutLMSelfAttention <- torch::nn_module(
     }
     # Take the dot product between "query" and "key" to get the raw attention scores.
     attention_scores <- torch::torch_matmul(query_layer, key_layer$transpose(-1, -2))
-    
+
     if (self$position_embedding_type %in% c("relative_key","relative_key_query")){
       seq_length <- hidden_states$size()[2]
       position_ids_l <- torch::torch_arange(seq_length, dtype=torch::torch_long, device=hidden_states$device)$view(c(-1, 1))
@@ -169,7 +169,7 @@ LayoutLMSelfAttention <- torch::nn_module(
       distance <- position_ids_l - position_ids_r
       positional_embedding <- self$distance_embedding(distance + self$max_position_embeddings - 1)
       positional_embedding <- positional_embedding$to(dtype=query_layer$dtype)  # fp16 compatibility
-      
+
       if (self$position_embedding_type == "relative_key"){
         relative_position_scores <- torch::torch_einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
         attention_scores <- attention_scores + relative_position_scores
@@ -186,23 +186,23 @@ LayoutLMSelfAttention <- torch::nn_module(
     }
     # Normalize the attention scores to probabilities.
     attention_probs <- torch::nnf_softmax(attention_scores, dim=-1)
-    
+
     # This is actually dropping out entire tokens to attend to, which might
     # seem a bit unusual, but is taken from the original Transformer paper.
     attention_probs <- self$dropout(attention_probs)
-    
+
     # Mask heads if we want to
     if (!is.null(head_mask)){
       attention_probs <- attention_probs * head_mask
     }
     context_layer <- torch::torch_matmul(attention_probs, value_layer)
-    
+
     context_layer <- context_layer$permute(c(1, 3, 2, 4))$contiguous()
     # TODO is it broadcasting second term or ?
     new_context_layer_shape <- append(context_layer$shape[1:(context_layer$ndim-2)],self$all_head_size)
     context_layer <- context_layer$view(new_context_layer_shape)
-    
-    
+
+
     out_lst <- list(context_layer)
     if (output_attentions){
       out_lst <- append(out_lst, attention_probs)
@@ -252,15 +252,15 @@ LayoutLMAttention <- torch::nn_module(
     self$self$key <- prune_linear_layer(self$self$key, index)
     self$self$value <- prune_linear_layer(self$self$value, index)
     self$output$dense <- prune_linear_layer(self$output$dense, index, dim=1)
-    
+
     # Update hyper params and store pruned heads
     self$self$num_attention_heads <- self$self$num_attention_heads - len(heads)
     self$self$all_head_size <- self$self$attention_head_size * self$self$num_attention_heads
     self$pruned_heads <- self$pruned_heads$union(heads)
-    
+
   },
   forward = function(
-    
+
     hidden_states,
     attention_mask=NULL,
     head_mask=NULL,
@@ -309,7 +309,7 @@ LayoutLMOutput <- torch::nn_module(
     self$dense <- torch::nn_linear(config$intermediate_size, config$hidden_size)
     self$LayerNorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
     self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
-    
+
   },
   forward = function(hidden_states, input_tensor){
     hidden_states <- self$dense(hidden_states)
@@ -354,7 +354,7 @@ LayoutLMLayer <- torch::nn_module(
       past_key_value=self_attn_past_key_value,
     )
     attention_output <- self_attention_outputs[[1]]
-    
+
     # if decoder, the last output is tuple of self-attn cache
     if (self$is_decoder){
       outputs <- self_attention_outputs[c(2:(length(self_attention_outputs)-1))]
@@ -365,7 +365,7 @@ LayoutLMLayer <- torch::nn_module(
     cross_attn_present_key_value <- NULL
     if (self$is_decoder & !is.null(encoder_hidden_states)){
       stopifnot("If `encoder_hidden_states` are passed, list(self) has to be instantiated with cross-attention layers by setting `config$add_cross_attention=TRUE`" = !is.null(self$crossattention))
-      
+
       # cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple
       cross_attn_past_key_value <- ifelse(is.null(past_key_value), NULL, past_key_value[-c(1:(length(past_key_value)-2))])
       cross_attention_outputs <- self$crossattention(
@@ -379,7 +379,7 @@ LayoutLMLayer <- torch::nn_module(
       )
       attention_output <- cross_attention_outputs[[1]]
       outputs <- append(outputs,cross_attention_outputs[c(2:(length(cross_attention_outputs)-1))] ) # add cross attentions if we output attention weights
-      
+
       # add cross-attn cache to positions 3,4 of present_key_value tuple
       cross_attn_present_key_value <- cross_attention_outputs[[length(cross_attention_outputs)]]
       present_key_value <- append(present_key_value, cross_attn_present_key_value)
@@ -388,13 +388,13 @@ LayoutLMLayer <- torch::nn_module(
       self$feed_forward_chunk, self$chunk_size_feed_forward, self$seq_len_dim, attention_output
     )
     outputs <- append(layer_output,outputs)
-    
+
     # if decoder, return the attn key/values as the last output
     if (self$is_decoder){
       outputs <- append(outputs, present_key_value)
     }
     return(outputs)
-    
+
   },
   feed_forward_chunk = function(attention_output){
     intermediate_output <- self$intermediate(attention_output)
@@ -410,7 +410,7 @@ LayoutLMEncoder <- torch::nn_module(
     self$config <- config
     self$layer <- torch::nn_module_list(lapply(1:config$num_hidden_layers, function(x) docformer:::LayoutLMLayer(config)))
     self$gradient_checkpointing <- FALSE
-    
+
   },
   forward = function(
     hidden_states,
@@ -427,16 +427,16 @@ LayoutLMEncoder <- torch::nn_module(
     # all_hidden_states <- () if output_hidden_states else NULL
     # all_self_attentions <- () if output_attentions else NULL
     # all_cross_attentions <- () if output_attentions and self$config$add_cross_attention else NULL
-    
+
     # next_decoder_cache <- () if use_cache else NULL
     hidden_layer_seq <- seq(length(self$layer))
     if (output_hidden_states){
       all_hidden_states <- rep(hidden_states, length(self$layer))
-      
-      
+
+
       # layer_head_mask <- head_mask[i] if head_mask is not NULL else NULL
       # past_key_value <- past_key_values[i] if past_key_values is not NULL else NULL
-      
+
       if (self$gradient_checkpointing & self$training){
         if (use_cache==TRUE) {
           rlang::warn("`use_cache=TRUE` is incompatible with gradient checkpointing. Setting `use_cache=FALSE`...")
@@ -469,7 +469,7 @@ LayoutLMEncoder <- torch::nn_module(
             output_attentions,
           ))
       }
-      
+
       all_hidden_states <- purrr::map(layer_outputs, ~.x[[1]])
       if (use_cache){
         next_decoder_cache <- purrr::map(layer_outputs, ~dplyr::last(.x))
@@ -484,7 +484,7 @@ LayoutLMEncoder <- torch::nn_module(
     if (output_hidden_states){
       all_hidden_states <- append(all_hidden_states,hidden_states)
     }
-    
+
     res_lst <- list(
       last_hidden_state = dplyr::last(all_hidden_states),
       past_key_values = next_decoder_cache,
@@ -504,7 +504,7 @@ LayoutLMPooler <- torch::nn_module(
   initialize = function(config){
     self$dense <- torch::nn_linear(config$hidden_size, config$hidden_size)
     self$activation <- torch::nn_tanh()
-    
+
   },
   forward = function(hidden_states){
     # We "pool" the model by simply taking the hidden state corresponding
@@ -527,7 +527,7 @@ LayoutLMPredictionHeadTransform <- torch::nn_module(
       self$transform_act_fn <- config$hidden_act
     }
     self$LayerNorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
-    
+
   },
   forward = function(hidden_states){
     hidden_states <- self$dense(hidden_states)
@@ -542,16 +542,16 @@ LayoutLMLMPredictionHead <- torch::nn_module(
   "LayoutLMLMPredictionHead",
   initialize = function(config){
     self$transform <- LayoutLMPredictionHeadTransform(config)
-    
+
     # The output weights are the same as the input embeddings, but there is
     # an output-only bias for each token.
     self$decoder <- torch::nn_linear(config$hidden_size, config$vocab_size, bias=FALSE)
-    
+
     self$bias <- torch::nn_parameter(torch::torch_zeros(config$vocab_size))
-    
+
     # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
     self$decoder$bias <- self$bias
-    
+
   },
   forward = function(hidden_states){
     hidden_states <- self$transform(hidden_states)
@@ -565,7 +565,7 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
   "LayoutLMOnlyMLMHead",
   initialize = function(config){
     self$predictions <- LayoutLMLMPredictionHead(config)
-    
+
   },
   forward = function(sequence_output){
     prediction_scores <- self$predictions(sequence_output)
@@ -589,22 +589,22 @@ LayoutLMModel <- torch::nn_module(
   "LayoutLMPreTrainedModel",
   initialize = function(config){
     self$config <- config
-    
+
     self$embeddings <- LayoutLMEmbeddings(config)
     self$encoder <- LayoutLMEncoder(config)
     self$pooler <- LayoutLMPooler(config)
-    
+
     # Initialize weights and apply final processing
     # self$init_weights()
-    
+
   },
   get_input_embeddings = function(self){
     self$embeddings$word_embeddings
-    
+
   },
   set_input_embeddings = function(value){
     self$embeddings$word_embeddings <- value
-    
+
   },
   prune_heads = function(heads_to_prune){
     # """
@@ -664,9 +664,9 @@ LayoutLMModel <- torch::nn_module(
     # ```"""
     output_attentions <- append(output_attentions,self$config$output_attentions)[[1]]
     output_hidden_states <- append(output_hidden_states,self$config$output_hidden_states)[[1]]
-    
+
     return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
-    
+
     if (!is.null(input_ids) & !is.null(inputs_embeds)){
       rlang::abort("You cannot specify both input_ids and inputs_embeds at the same time")
     } else if (!is.null(input_ids)){
@@ -676,25 +676,25 @@ LayoutLMModel <- torch::nn_module(
     } else {
       rlang::abort("You have to specify either input_ids or inputs_embeds")
     }
-    
+
     device <- ifelse(is.null(input_ids),inputs_embeds$device,input_ids$device)
-    
+
     if (is.null(attention_mask)){
       attention_mask <- torch::torch_ones(input_shape, device=device)
     }
     if (is.null(token_type_ids)){
       token_type_ids <- torch::torch_zeros(input_shape, dtype=torch::torch_long, device=device)
     }
-    
+
     if (is.null(bbox)){
       bbox <- torch::torch_zeros(append(input_shape, 4), dtype=torch::torch_long, device=device)
     }
-    
+
     extended_attention_mask <- attention_mask$unsqueeze(2)$unsqueeze(3)
-    
+
     extended_attention_mask <- extended_attention_mask$to(dtype=self$dtype)
     extended_attention_mask <- (1 - extended_attention_mask) * -10000
-    
+
     if (!is.null(head_mask)){
       if (head_mask$ndim == 1){
         head_mask <- head_mask$unsqueeze(1)$unsqueeze(1)$unsqueeze(-1)$unsqueeze(-1)
@@ -706,7 +706,7 @@ LayoutLMModel <- torch::nn_module(
     } else {
       head_mask <- list()
     }
-    
+
     embedding_output <- self$embeddings(
       input_ids=input_ids,
       bbox=bbox,
@@ -724,11 +724,11 @@ LayoutLMModel <- torch::nn_module(
     )
     sequence_output <- encoder_outputs[[1]]
     pooled_output <- self$pooler(sequence_output)
-    
+
     if (!return_dict){
       return(append(sequence_output, pooled_output, encoder_outputs[-1]))
     }
-    
+
     result <-  list(
       last_hidden_state=sequence_output,
       pooler_output=pooled_output,
@@ -749,19 +749,19 @@ LayoutLMForMaskedLM<- torch::nn_module(
     self$cls <- LayoutLMOnlyMLMHead(config)
     # Initialize weights and apply final processing
     # self$init_weights()
-    
+
   },
   get_input_embeddings = function(){
     self$layoutlm$embeddings$word_embeddings
-    
+
   },
   get_output_embeddings = function(){
     self$cls$predictions$decoder
-    
+
   },
   set_output_embeddings = function(new_embeddings){
     self$cls$predictions$decoder <- new_embeddings
-    
+
   },
   forward = function(
     input_ids=NULL,
@@ -824,7 +824,7 @@ LayoutLMForMaskedLM<- torch::nn_module(
     # >>> loss <- outputs$loss
     # ```"""
     return_dict <- append(return_dict, self$config$use_return_dict)[[1]]
-    
+
     outputs <- self$layoutlm(
       input_ids,
       bbox,
@@ -839,10 +839,10 @@ LayoutLMForMaskedLM<- torch::nn_module(
       output_hidden_states=output_hidden_states,
       return_dict=return_dict,
     )
-    
+
     sequence_output <- outputs[1]
     prediction_scores <- self$cls(sequence_output)
-    
+
     masked_lm_loss <- NULL
     if (!is.null(labels)){
       loss_fct <- torch::nn_cross_entropy_loss()
@@ -851,12 +851,12 @@ LayoutLMForMaskedLM<- torch::nn_module(
         labels$view(-1),
       )
     }
-    
+
     if (!return_dict){
       output <- append(prediction_scores, outputs[-c(1:2)])
       return(append(masked_lm_loss,output))
     }
-    
+
     result <- list(
       loss=masked_lm_loss,
       logits=prediction_scores,
@@ -877,14 +877,14 @@ LayoutLMForSequenceClassification<- torch::nn_module(
     self$layoutlm <- LayoutLMModel(config)
     self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
     self$classifier <- torch::nn_linear(config$hidden_size, config$num_labels)
-    
+
     # Initialize weights and apply final processing
     # self$init_weights()
-    
+
   },
   get_input_embeddings = function(){
     self$layoutlm$embeddings$word_embeddings
-    
+
   },
   forward = function(
     input_ids=NULL,
@@ -945,7 +945,7 @@ LayoutLMForSequenceClassification<- torch::nn_module(
     # >>> logits <- outputs$logits
     # ```"""
     return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
-    
+
     outputs <- self$layoutlm(
       input_ids=input_ids,
       bbox=bbox,
@@ -958,12 +958,12 @@ LayoutLMForSequenceClassification<- torch::nn_module(
       output_hidden_states=output_hidden_states,
       return_dict=return_dict,
     )
-    
+
     pooled_output <- outputs[1]
-    
+
     pooled_output <- self$dropout(pooled_output)
     logits <- self$classifier(pooled_output)
-    
+
     loss <- NULL
     if (!is.null(labels)){
       if (is.null(self$config$problem_type)){
@@ -994,7 +994,7 @@ LayoutLMForSequenceClassification<- torch::nn_module(
       output <- append(logits,outputs[-c(1:2)])
       return(append(loss, output)[[1]])
     }
-    
+
     result <- list(
       loss=loss,
       logits=logits,
@@ -1016,14 +1016,14 @@ LayoutLMForTokenClassification<- torch::nn_module(
     self$layoutlm <- LayoutLMModel(config)
     self$dropout <- torch::nn_dropout(config$hidden_dropout_prob)
     self$classifier <- torch::nn_linear(config$hidden_size, config$num_labels)
-    
+
     # Initialize weights and apply final processing
     # self$init_weights()
-    
+
   },
   get_input_embeddings = function(){
     self$layoutlm$embeddings$word_embeddings
-    
+
   },
   forward = function(
     input_ids=NULL,
@@ -1082,7 +1082,7 @@ LayoutLMForTokenClassification<- torch::nn_module(
     # >>> logits <- outputs$logits
     # ```"""
     return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
-    
+
     outputs <- self$layoutlm(
       input_ids=input_ids,
       bbox=bbox,
@@ -1095,23 +1095,23 @@ LayoutLMForTokenClassification<- torch::nn_module(
       output_hidden_states=output_hidden_states,
       return_dict=return_dict,
     )
-    
+
     sequence_output <- outputs[[1]]
-    
+
     sequence_output <- self$dropout(sequence_output)
     logits <- self$classifier(sequence_output)
-    
+
     loss <- NULL
     if (!is.null(labels)){
       loss_fct <- torch::nn_cross_entropy_loss()
       loss <- loss_fct(logits$view(-1, self$num_labels), labels$view(-1))
     }
-    
+
     if (!return_dict){
       output <- append(logits,outputs[-c(1:2)])[[1]]
       return(append(loss, output)[[1]])
     }
-    
+
     result <- list(
       loss=loss,
       logits=logits,
@@ -1122,6 +1122,6 @@ LayoutLMForTokenClassification<- torch::nn_module(
     return(result)
   },
   from_pretrained = function(pretrained_model_name) {
-    .load_weights(pretrained_model_name)
+    .load_weights(model=self, model_name=pretrained_model_name)
   }
 )

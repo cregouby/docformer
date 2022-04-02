@@ -38,22 +38,26 @@ is_path <- function(fpath) {
 #' @keywords internal
 .download_weights <- function(model_name = "microsoft/layoutlm-base-uncased",
                               redownload = FALSE, timeout = 720) {
-  url <- transformers_config[transformers_config$model_name==model_name,]$url
-  dlr::set_app_cache_dir(appname = "layoutlm", cache_dir = "~/.cache/torch")
-  return(
-    withr::with_options(
-      list(timeout = timeout),
-      dlr::read_or_cache(
-        source_path = url,
-        appname = "layoutlm",
-        process_f = .process_downloaded_weights,
-        read_f = torch::torch_load,
-        write_f = torch::torch_save,
-        write_args = list(use_new_zipfile_serialization=TRUE),
-        force_process = redownload
+  if (file.exists(model_name)) {
+    return(.process_downloaded_weights(model_name))
+  } else {
+    url <- transformers_config[transformers_config$model_name==model_name,]$url
+    dlr::set_app_cache_dir(appname = "layoutlm", cache_dir = "~/.cache/torch")
+    return(
+      withr::with_options(
+        list(timeout = timeout),
+        dlr::read_or_cache(
+          source_path = url,
+          appname = "layoutlm",
+          process_f = .process_downloaded_weights,
+          read_f = torch::torch_load,
+          write_f = torch::torch_save,
+          write_args = list(use_new_zipfile_serialization=TRUE),
+          force_process = redownload
+        )
       )
     )
-  )
+  }
 }
 
 #' Process Downloaded Weights
@@ -67,11 +71,11 @@ is_path <- function(fpath) {
   return(state_dict)
 }
 
-#' Load Pretrained Weights into a BERT Model
+#' Load Pretrained Weights into a Transformers Model
 #'
 #' Loads specified pretrained weights into the given BERT model.
 #'
-#' @param model A BERT-type model, constructed using `model_bert`.
+#' @param model A transformers-type model, constructed using `model_bert`.
 #' @param model_name Character; which flavor of BERT to use. Must be compatible
 #'   with `model`!
 #' @param redownload
@@ -85,17 +89,17 @@ is_path <- function(fpath) {
   # This will usually just fetch from the cache
   sd <- .download_weights(model_name = model_name, redownload = redownload)
 
-  # my_sd <- model$state_dict()
-  # my_weight_names <- names(my_sd)
-  # saved_weight_names <- names(sd)
-  # names_in_common <- intersect(my_weight_names, saved_weight_names)
-  # if (length(names_in_common) > 0) {
-  #   my_sd[names_in_common] <- sd[names_in_common]
-  # } else {
-  #   warning("No matching weight names found.") # nocov
-  # }
-  # model$load_state_dict(my_sd)
-  model$load_state_dict(sd)
+  local_sd <- model$state_dict()
+  local_weight_names <- names(local_sd)
+  imported_weight_names <- names(sd)
+  names_in_common <- intersect(local_weight_names, imported_weight_names)
+  if (length(names_in_common) > 0) {
+    local_sd[names_in_common] <- sd[names_in_common]
+  } else {
+    warning("No matching weight names found.") # nocov
+  }
+  model$load_state_dict(local_sd)
+  # model$load_state_dict(sd)
   # return(length(names_in_common)) # This function is for side effects.
  # This function is for side effects.
 }

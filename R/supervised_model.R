@@ -70,7 +70,7 @@ docformer_config <- function(coordinate_size = 96L,
     pad_token_id = pad_token_id,
     shape_size = shape_size,
     vocab_size = vocab_size,
-    type_vocab_size = vocab_size,
+    type_vocab_size = type_vocab_size,
     layer_norm_eps = layer_norm_eps,
     batch_size = batch_size,
     pretraining_ratio = pretraining_ratio,
@@ -79,7 +79,7 @@ docformer_config <- function(coordinate_size = 96L,
     is_decoder = FALSE,
     intermediate_size = 3072L,
     hidden_act = "gelu",
-    num_labels = 5L
+    num_labels = 1L
   )
 
 }
