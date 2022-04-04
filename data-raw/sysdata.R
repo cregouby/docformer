@@ -33,6 +33,11 @@ weights_url_map <- c(
     hf_url_prefix,
     "allenai/ivila-block-layoutlm-finetuned-docbank",
     hf_url_suffix
+  ),
+  "hf-internal-testing/tiny-layoutlm" = paste0(
+    hf_url_prefix,
+    "hf-internal-testing/tiny-layoutlm",
+    hf_url_suffix
   )
 )
 
@@ -63,7 +68,8 @@ transformer_configs <- tibble::tribble(
   "microsoft/layoutlm-large-uncased", 1024L, 24L, 16L, 512L, 30522L,
   "allenai/hvila-block-layoutlm-finetuned-grotoap2", 768L, 12L, 12L, 512L,  30522L,
   "allenai/hvila-row-layoutlm-finetuned-docbank", 768L, 12L, 12L, 512L,  30522L,
-  "allenai/ivila-block-layoutlm-finetuned-docbank", 768L, 12L, 12L, 512L, 30522L
+  "allenai/ivila-block-layoutlm-finetuned-docbank", 768L, 12L, 12L, 512L, 30522L,
+  "hf-internal-testing/tiny-layoutlm", 32L, 2L, 2L, 512L, 5000L
 
 )
 

@@ -23,7 +23,7 @@ test_that("LayoutLMForTokenClassification from_pretrain works from public weight
   skip_on_cran()
   skip_on_os("windows")
   config  <-  docformer_config()
-  pretrained_model_name <- "allenai/hvila-row-layoutlm-finetuned-docbank"
+  pretrained_model_name <- "hf-internal-testing/tiny-layoutlm"
   layoutlm_net <- LayoutLMForTokenClassification(config)
   expect_error(layoutlm_mod <- layoutlm_net$from_pretrained(pretrained_model_name=pretrained_model_name), NA)
 })
