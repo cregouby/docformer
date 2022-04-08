@@ -48,7 +48,7 @@ is_path <- function(fpath) {
         dlr::read_or_cache(
           source_path = url,
           appname = "layoutlm",
-          process_f = .process_downloaded_weights,
+          process_f = torchtransformers:::.process_downloaded_weights,
           read_f = torch::torch_load,
           write_f = torch::torch_save,
           write_args = list(use_new_zipfile_serialization=TRUE),

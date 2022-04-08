@@ -14,7 +14,7 @@ RoxygenNote: 7.1.2
 URL: https://github.com/cregouby/docformer
 BugReports: https://github.com/cregouby/docformer/issues
 Imports: 
-    torch (>= 0.4.0),
+    torch (>= 0.7.2.9000),
     hardhat,
     magrittr,
     glue,

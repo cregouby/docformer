@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{.load_weights}
 \alias{.load_weights}
-\title{Load Pretrained Weights into a BERT Model}
+\title{Load Pretrained Weights into a Transformers Model}
 \usage{
 .load_weights(
   model,
@@ -11,10 +11,10 @@
 )
 }
 \arguments{
-\item{model}{A BERT-type model, constructed using \code{model_bert}.}
+\item{model}{A transformers-type \code{nn_module} model.}
 
-\item{model_name}{Character; which flavor of BERT to use. Must be compatible
-with \code{model}!}
+\item{model_name}{Character; which public Transformers model weights to use. Must be compatible
+with \code{model} architecture!}
 
 \item{redownload}{}
 }

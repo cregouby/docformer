@@ -8,6 +8,7 @@ docformer_config(
   coordinate_size = 96L,
   shape_size = 96L,
   hidden_dropout_prob = 0.1,
+  attention_dropout_prob = 0.1,
   hidden_size = 768L,
   image_feature_pool_shape = c(7, 7, 256),
   intermediate_ff_size_factor = 3L,
@@ -18,6 +19,7 @@ docformer_config(
   num_hidden_layers = 12L,
   pad_token_id = 1L,
   vocab_size = 30522L,
+  type_vocab_size = 2L,
   layer_norm_eps = 1e-12,
   batch_size = 9L,
   loss = "auto",
@@ -33,6 +35,8 @@ docformer_config(
 \item{shape_size}{(int): Output size of each position embedding (default 96)}
 
 \item{hidden_dropout_prob}{(float): Dropout probability in docformer_encoder block (default 0.1)}
+
+\item{attention_dropout_prob}{(float): Dropout probability in docformer_attention block (default 0.1)}
 
 \item{hidden_size}{(int): Size of the hidden layer in common with text embedding and positional embedding (default 768)}
 
@@ -53,6 +57,8 @@ docformer_config(
 \item{pad_token_id}{(int): Id of the padding token}
 
 \item{vocab_size}{(int): Length of the vocabulary}
+
+\item{type_vocab_size}{(int): Length of the type vocabulary}
 
 \item{layer_norm_eps}{(float): Epsilon value used in normalisation layer (default 1e-12)}
 
