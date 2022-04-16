@@ -61,13 +61,15 @@ docformer_config <- function(pretrained_model_name=NA_character_,
 ) {
   if (!is.na(pretrained_model_name)) {
     if (pretrained_model_name %in% transformers_config$model_name) {
-      transformer_c <- transformers_config %>% filter(model_name == pretrained_model_name)
+      transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
       max_position_embeddings <- transformer_c$max_position_embeddings
       num_attention_heads <- transformer_c$n_head
       num_hidden_layers <- transformer_c$n_layer
       vocab_size <- transformer_c$vocab_size
       type_vocab_size <- transformer_c$type_vocab_size
+    } else {
+      rlang::warn("Provided model name cannot be found in `transformers_config`. using default config values")
     }
   }
   list(
