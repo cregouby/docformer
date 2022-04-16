@@ -32,5 +32,7 @@ usethis::use_data(
 rm(
   hf_url_prefix,
   hf_url_suffix,
+  gh_url_prefix,
+  gh_url_suffix,
   transformers_config
 )
