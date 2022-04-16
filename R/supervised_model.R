@@ -26,7 +26,7 @@
 #'   training.
 #' @param device The device to use for training. "cpu" or "cuda". The default ("auto")
 #'   uses  to "cuda" if it's available, otherwise uses "cpu".
-#' @param pretrained_model_name (character) : one of the supported model name to derive config from.
+#' @param pretrained_model_name (character) : one of the supported model name in `transformers_config` to derive config from.
 #'
 #' @return a named list will all needed hyperparameters of the Docformer implementation.
 #' @export
@@ -60,8 +60,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
                              device = "auto"
 ) {
   if (!is.na(pretrained_model_name)) {
-    if (pretrained_model_name %in% transformer_configs$model_name) {
-      transformer_c <- transformer_configs %>% filter(model_name == pretrained_model_name)
+    if (pretrained_model_name %in% transformers_config$model_name) {
+      transformer_c <- transformers_config %>% filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
       max_position_embeddings <- transformer_c$max_position_embeddings
       num_attention_heads <- transformer_c$n_head
