@@ -26,13 +26,17 @@
 #'   training.
 #' @param device The device to use for training. "cpu" or "cuda". The default ("auto")
 #'   uses  to "cuda" if it's available, otherwise uses "cpu".
+#' @param pretrained_model_name (character) : one of the supported model name to derive config from.
 #'
 #' @return a named list will all needed hyperparameters of the Docformer implementation.
 #' @export
 #'
 #' @examples
-#' config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, verbose=TRUE)
-docformer_config <- function(coordinate_size = 96L,
+#' config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, epoch =5, verbose=TRUE)
+#' config <- docformer_config(pretrained_model_name="hf-internal-testing/tiny-layoutlm", batch_size=27, epoch =5, verbose=TRUE)
+#'
+docformer_config <- function(pretrained_model_name=NA_character_,
+                             coordinate_size = 96L,
                              shape_size = 96L,
                              hidden_dropout_prob = 0.1,
                              attention_dropout_prob = 0.1,
@@ -55,6 +59,17 @@ docformer_config <- function(coordinate_size = 96L,
                              verbose = FALSE,
                              device = "auto"
 ) {
+  if (!is.na(pretrained_model_name)) {
+    if (pretrained_model_name %in% transformer_configs$model_name) {
+      transformer_c <- transformer_configs %>% filter(model_name == pretrained_model_name)
+      hidden_size <- transformer_c$hidden_size
+      max_position_embeddings <- transformer_c$max_position_embeddings
+      num_attention_heads <- transformer_c$n_head
+      num_hidden_layers <- transformer_c$n_layer
+      vocab_size <- transformer_c$vocab_size
+      type_vocab_size <- transformer_c$type_vocab_size
+    }
+  }
   list(
     coordinate_size = coordinate_size,
     hidden_dropout_prob = hidden_dropout_prob,
@@ -81,6 +96,7 @@ docformer_config <- function(coordinate_size = 96L,
     hidden_act = "gelu",
     num_labels = 1L
   )
+
 
 }
 
