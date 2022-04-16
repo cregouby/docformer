@@ -20,7 +20,7 @@ transformers_config <- tibble::tribble(
   "hf-internal-testing/tiny-layoutlm", 32L, 2L, 2L, 512L, 5000L, 2L, "hf-internal-testing/tiny-layoutlm", "gh"
 ) %>%
   dplyr::mutate(url = dplyr::case_when(flavor=="hf" ~ paste0(hf_url_prefix, url, hf_url_suffix),
-                                       flavor=="gh" ~ paste0(gh_url_prefix, stringr::str_split(url,"/", simplify=TRUE)[2], gh_url_suffix)))
+                                       flavor=="gh" ~ paste0(gh_url_prefix, stringr::str_split(url,"/", simplify=TRUE)[,2], gh_url_suffix)))
 
 
 
