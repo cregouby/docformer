@@ -1,7 +1,7 @@
 ## code to prepare `model_url` dataset goes here
 hf_url_prefix <- "https://huggingface.co/"
 hf_url_suffix <- "/resolve/main/pytorch_model.bin"
-gh_url_prefix <- "https://github.com/cregouby/docformer_models/raw/main/inst/"
+gh_url_prefix <- "https://media.githubusercontent.com/media/cregouby/docformer_models/main/inst/"
 gh_url_suffix <- ".pth"
 
 # "intermediate size" is always 4x the embedding size for these models.
@@ -26,7 +26,7 @@ transformers_config <- tibble::tribble(
 
 usethis::use_data(
   transformers_config,
-  internal = TRUE,
+  internal = FALSE,
   overwrite = TRUE
 )
 rm(
