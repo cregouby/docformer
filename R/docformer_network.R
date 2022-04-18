@@ -36,7 +36,7 @@ resnet_feature_extractor <- torch::nn_module(
       self$relu1 %>%
       torch::torch_reshape(c(x$size(1:2), -1)) %>% # "b e w h -> b e (w.h)" batch, embedding, w, h
       self$linear1 %>%
-      torch::torch_movedim(c(2,3)) # "b e s -> b s e", batch, embedding, sequence
+      torch::torch_movedim(2,3) # "b e s -> b s e", batch, embedding, sequence
   }
 )
 docformer_embeddings <- torch::nn_module(
@@ -274,9 +274,6 @@ relative_position <- torch::nn_module(
 multimodal_attention_layer <- torch::nn_module(
   "multimodal_attention_layer",
   initialize = function(embed_dim, n_heads, max_relative_position, max_seq_length, dropout){
-    # TODO shift left consistency check to docformer_config()
-    stopifnot("Error: `embed_dim` is not multiple of `n_head` which prevent initialization of the multimodal_attention_layer" = embed_dim %% n_heads ==0)
-
     self$embed_dim <- embed_dim
     self$n_heads <- n_heads
     self$head_dim <- embed_dim %/% n_heads
@@ -475,7 +472,7 @@ docformer <- torch::nn_module(
   forward = function(x) {
     output <- self$extract_feature(x) %>%
       self$encoder() %>%
-      self$dropout(output)
+      self$dropout()
 
   }
 )

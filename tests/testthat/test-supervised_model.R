@@ -21,4 +21,9 @@ test_that("docformer config warn if wrong model name", {
   expect_equal(config$vocab_size, 30522L)
 })
 
+test_that("docformer config fails if hidden_size is not multiple of num_attention_head", {
+  expect_error(config  <-  docformer_config(num_attention_heads = 11L),
+               "is not multiple of")
+})
+
 

@@ -74,6 +74,11 @@ docformer_config <- function(pretrained_model_name=NA_character_,
       rlang::warn("Provided model name cannot be found in `transformers_config`. using default config values")
     }
   }
+  # consistency check
+  if (hidden_size %% num_attention_heads !=0) {
+    rlang::abort(message="Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
+  }
+
   # resolve device
   if (device == "auto") {
     if (torch::cuda_is_available()){
@@ -177,7 +182,7 @@ docformer_fit.docformer_tensor <- function(x, config = docformer_config(), ...) 
   ]
   config <- utils::modifyList(config, as.list(new_config))
   # luz training
-  docformer %>%
+  docformer(config) %>%
     luz::setup(
       loss = torch::nn_mse_loss(),
       optimizer = torch::optim_adam
