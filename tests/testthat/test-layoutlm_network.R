@@ -13,7 +13,7 @@ test_that("LayoutLMForTokenClassification initialize works ", {
 test_that("LayoutLMForTokenClassification from_pretrain works from local file", {
   skip_on_cran()
   skip_on_os("windows")
-  config  <-  docformer_config(hidden_size=32L, max_position_embeddings=512L, num_attention_heads=2L, num_hidden_layers=2L, vocab_size=5000L)
+  config  <-  docformer_config(hidden_size=32L, max_position_embeddings=512L, max_2d_position_embeddings=128L, intermediate_ff_size_factor = 2L, num_attention_heads=2L, num_hidden_layers=2L, vocab_size=5000L)
   pretrained_model_name <- here::here("inst/tiny-layoutlm.pth")
   layoutlm_net <- LayoutLMForTokenClassification(config)
   expect_error(layoutlm_mod <- layoutlm_net$from_pretrained(pretrained_model_name=pretrained_model_name), NA)

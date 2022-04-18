@@ -42,7 +42,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
                              attention_dropout_prob = 0.1,
                              hidden_size = 768L,
                              image_feature_pool_shape = c(7, 7, 256),
-                             intermediate_ff_size_factor = 3L,  # default ought to be 4
+                             intermediate_ff_size_factor = 4L,  # could be turned to 3L
                              max_2d_position_embeddings = 1024L,
                              max_position_embeddings = 512L,
                              max_relative_positions = 8L,
@@ -63,11 +63,12 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     if (pretrained_model_name %in% transformers_config$model_name) {
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
+      intermediate_ff_size_factor <-transformer_c$intermediate_ff_size_factor
+      max_2d_position_embeddings <- transformer_c$max_2d_position_embeddings
       max_position_embeddings <- transformer_c$max_position_embeddings
       num_attention_heads <- transformer_c$n_head
       num_hidden_layers <- transformer_c$n_layer
       vocab_size <- transformer_c$vocab_size
-      type_vocab_size <- transformer_c$type_vocab_size
     } else {
       rlang::warn("Provided model name cannot be found in `transformers_config`. using default config values")
     }
@@ -94,7 +95,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     verbose = verbose,
     device = device,
     is_decoder = FALSE,
-    intermediate_size = 3072L,
+    intermediate_size = intermediate_ff_size_factor * hidden_size,
     hidden_act = "gelu",
     num_labels = 1L
   )

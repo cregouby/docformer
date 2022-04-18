@@ -436,7 +436,7 @@ docformer_encoder <- torch::nn_module(
         ),
         pre_norm(hidden_size,
                 feed_forward(hidden_size,
-                            hidden_size * config$intermediate_ff_size_factor,
+                            config$intermediate_size,
                             dropout=config$hidden_dropout_prob))
       )
     self$layers$append(encoder_block)
