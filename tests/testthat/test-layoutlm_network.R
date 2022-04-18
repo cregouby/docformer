@@ -8,6 +8,8 @@ test_that("LayoutLMForTokenClassification initialize works ", {
   expect_true(torch::is_nn_module(layoutlm_net$layoutlm$embeddings))
   expect_true(torch::is_nn_module(layoutlm_net$layoutlm$encoder))
   expect_true(torch::is_nn_module(layoutlm_net$layoutlm$pooler))
+#  expect_equivalent(layoutlm_net$layoutlm$embeddings$word_embeddings$weight$dtype, torch::torch_float())
+  expect_equal(layoutlm_net$layoutlm$embeddings$word_embeddings$weight$shape, c(30522L, 768L))
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works from local file", {

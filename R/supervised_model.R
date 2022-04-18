@@ -59,6 +59,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
                              verbose = FALSE,
                              device = "auto"
 ) {
+  # override config parameters from pretrained model if any
   if (!is.na(pretrained_model_name)) {
     if (pretrained_model_name %in% transformers_config$model_name) {
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
@@ -72,6 +73,16 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     } else {
       rlang::warn("Provided model name cannot be found in `transformers_config`. using default config values")
     }
+  }
+  # resolve device
+  if (device == "auto") {
+    if (torch::cuda_is_available()){
+      device <- "cuda"
+    } else {
+      device <- "cpu"
+    }
+  } else {
+    device <- device
   }
   list(
     coordinate_size = coordinate_size,

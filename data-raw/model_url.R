@@ -10,7 +10,7 @@ transformers_config <- tibble::tribble(
   "layoutlm-base-uncased", 768L, 12L, 12L, 512L, 1024L, 30522L, 4L,             2L,"microsoft/layoutlm-base-uncased", "gh",
   # "layoutlm-base-cased", 768L, 12L, 12L, 512L, 1024L, 50265L, 4L,               2L,"microsoft/layoutlm-base-cased",   "hf",
   # "layoutlm-large-uncased", 1024L, 24L, 16L, 512L, 1024L, 30522L,  4L,          2L,"microsoft/layoutlm-large-uncased","hf",
-  # "microsoft/layoutlm-base-uncased", 768L, 12L, 12L, 1024L, 512L, 30522L, 4L,   2L,"microsoft/layoutlm-base-uncased", "hf",
+  "microsoft/layoutlm-base-uncased", 768L, 12L, 12L, 512L, 1024L, 30522L, 4L,   2L,"microsoft/layoutlm-base-uncased", "gh",
   # "microsoft/layoutlm-base-cased", 768L, 12L, 12L, 512L, 1024L, 50265L, 4L,     2L,"microsoft/layoutlm-base-cased",   "hf",
   # "microsoft/layoutlm-large-uncased", 1024L, 24L, 16L, 512L, 1024L, 30522L, 4L, 2L,"microsoft/layoutlm-large-uncased","hf",
   "allenai/hvila-row-layoutlm-finetuned-docbank", 768L, 12L, 12L, 512L, 1024L, 30522L, 4L   , 13L, "allenai/hvila-row-layoutlm-finetuned-docbank","gh",
