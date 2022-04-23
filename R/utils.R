@@ -95,12 +95,15 @@ is_path <- function(fpath) {
   if (length(names_in_common) > 0) {
     local_sd[names_in_common] <- sd[names_in_common]
   } else {
-    warning("No matching weight names found.") # nocov
+    warning("No matching weight names found.")
   }
   model$load_state_dict(local_sd)
-  # model$load_state_dict(sd)
-  # return(length(names_in_common)) # This function is for side effects.
- # This function is for side effects.
+}
+
+
+.prune_head <- function(model) {
+  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children)-1)])
+  return(pruned_model)
 }
 
 

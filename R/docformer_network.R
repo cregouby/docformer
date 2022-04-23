@@ -20,10 +20,8 @@ resnet_feature_extractor <- torch::nn_module(
   "resnet_feature_extractor",
   initialize = function(){
     # use ResNet model for visual features embedding (remove classificaion head)
-    resnet50 <- torchvision::model_resnet50(pretrain=TRUE)
     # extract resnet50 `layer 4`
-    resnet_headless_seq <- seq(1,length(resnet50$children)-2)
-    self$resnet50 <- torch::nn_module_list(resnet50$children[resnet_headless_seq])
+    self$resnet50 <- .prune_head(torchvision::model_resnet50(pretrain=TRUE))
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048,768,1)
     self$relu1 <- torch::nn_relu()
@@ -470,9 +468,9 @@ docformer <- torch::nn_module(
 
   },
   forward = function(x) {
-    output <- self$extract_feature(x) %>%
-      self$encoder() %>%
-      self$dropout()
+    x_ex_fe <- self$extract_feature(x)
+    x_enc <- self$encoder(x_ex_fe)
+    output <- self$dropout(x_enc)
 
   }
 )
