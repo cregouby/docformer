@@ -23,18 +23,17 @@ resnet_feature_extractor <- torch::nn_module(
     # extract resnet50 `layer 4`
     self$resnet50 <- .prune_head(torchvision::model_resnet50(pretrain=TRUE))
     # Applying convolution and linear layer
-    self$conv1 <- torch::nn_conv2d(2048,768,1)
+    self$conv1 <- torch::nn_conv2d(2048,768,kernel_size=1)
     self$relu1 <- torch::nn_relu()
-    self$linear1 <- torch::nn_linear(192,512)
+    self$linear1 <- torch::nn_linear(768,512)
   },
   forward = function(x) {
-    x %>%
-      self$resnet50 %>%
-      self$conv1 %>%
-      self$relu1 %>%
-      torch::torch_reshape(c(x$size(1:2), -1)) %>% # "b e w h -> b e (w.h)" batch, embedding, w, h
-      self$linear1 %>%
-      torch::torch_movedim(2,3) # "b e s -> b s e", batch, embedding, sequence
+    x  <- self$resnet50(x)
+    x  <- self$conv1(x)
+    x  <- self$relu1(x)
+    x  <- x$reshape(c(x$shape[1:2], -1)) # "b e w h -> b e (w.h)" batch, embedding, w, h
+    x  <- self$linear1(x)
+    x  <- x$movedim(2,3) # "b e s -> b s e", batch, embedding, sequence
   }
 )
 docformer_embeddings <- torch::nn_module(
