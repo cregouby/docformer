@@ -8,6 +8,7 @@ test_that("docformer initialization works with default params", {
 test_that("docformer forward works with the expected tensor input", {
   config  <-  docformer_config()
   docformer_net <- docformer(config)
+  doc_tt <- create_features_from_doc(doc, sent_tok_mask)
   expect_error(output_tt <- docformer_net(doc_tt), NA)
 })
 

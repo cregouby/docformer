@@ -31,9 +31,10 @@ resnet_feature_extractor <- torch::nn_module(
     x  <- self$resnet50(x)
     x  <- self$conv1(x)
     x  <- self$relu1(x)
-    x  <- x$reshape(c(x$shape[1:2], -1)) # "b e w h -> b e (w.h)" batch, embedding, w, h
-    x  <- self$linear1(x)
-    x  <- x$movedim(2,3) # "b e s -> b s e", batch, embedding, sequence
+    y  <- x$reshape(c(x$shape[1:2], -1)) # "b e w h -> b e (w.h)" batch, embedding, w, h
+    y  <- y$movedim(1,2) # "b e s -> b s e", batch, embedding, sequence
+    y  <- self$linear1(y)
+    return(y)
   }
 )
 docformer_embeddings <- torch::nn_module(

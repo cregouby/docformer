@@ -10,11 +10,14 @@ test_that("normalize_box works with single var", {
 test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   phrase <- c("This", "Simple", "Coconut", "Curry", "Recipe", "Produces", "Flavorful", "Fish", "Fast")
   # sentencepiece
-  expect_true(purrr::vec_depth(.tokenize(tokenizer=sent_tok, phrase))==2)
+  expect_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase),NA)
+  expect_true(purrr::vec_depth(tokenized)==2)
   # hf tokenizer
-  # expect_true(purrr::vec_depth(.tokenize(tokenizer=hf_tok, phrase))==2)
+  # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
+  # expect_true(purrr::vec_depth(tokenized)==2)
   # tokenizer.bpe
-  expect_true(purrr::vec_depth(.tokenize(tokenizer=bpe_tok, phrase))==2)
+  expect_error(tokenized <- .tokenize(tokenizer=bpe_tok, phrase),NA)
+  expect_true(purrr::vec_depth(tokenized)==2)
 
 })
 
@@ -110,7 +113,7 @@ test_that("features properly save to disk and can be restored", {
     expect_error(doc2_tt <- read_featureRDS(file=doc_file),
                  regexp = NA)
     expect_equal(purrr::map(doc2_tt,~.x$shape), purrr::map(doc_tt,~.x$shape))
-    expect_equal(purrr::map_chr(doc2_tt,~.x$dtype %>% as.character), 
+    expect_equal(purrr::map_chr(doc2_tt,~.x$dtype %>% as.character),
                  purrr::map_chr(doc_tt,~.x$dtype %>% as.character))
 
     image_file <- paste0(stringr::str_extract(image, "[^/]+$"),".Rds")

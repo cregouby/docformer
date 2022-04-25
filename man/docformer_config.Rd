@@ -5,13 +5,14 @@
 \title{Configuration for Docformer models}
 \usage{
 docformer_config(
+  pretrained_model_name = NA_character_,
   coordinate_size = 96L,
   shape_size = 96L,
   hidden_dropout_prob = 0.1,
   attention_dropout_prob = 0.1,
   hidden_size = 768L,
   image_feature_pool_shape = c(7, 7, 256),
-  intermediate_ff_size_factor = 3L,
+  intermediate_ff_size_factor = 4L,
   max_2d_position_embeddings = 1024L,
   max_position_embeddings = 512L,
   max_relative_positions = 8L,
@@ -30,6 +31,8 @@ docformer_config(
 )
 }
 \arguments{
+\item{pretrained_model_name}{(character) : one of the supported model name in \code{transformers_config} to derive config from.}
+
 \item{coordinate_size}{(int): Output size of each coordinate embedding (default 96)}
 
 \item{shape_size}{(int): Output size of each position embedding (default 96)}
@@ -85,5 +88,7 @@ a named list will all needed hyperparameters of the Docformer implementation.
 Configuration for Docformer models
 }
 \examples{
-config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, verbose=TRUE)
+config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, epoch =5, verbose=TRUE)
+config <- docformer_config(pretrained_model_name="hf-internal-testing/tiny-layoutlm", batch_size=27, epoch =5, verbose=TRUE)
+
 }
