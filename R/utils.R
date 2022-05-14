@@ -13,6 +13,7 @@
 NULL
 
 #' @importFrom rlang as_function %||% set_names global_env is_true is_logical
+NULL
 
 #' Download and Cache Weights
 #'
