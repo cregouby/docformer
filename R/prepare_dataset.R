@@ -337,7 +337,10 @@ create_features_from_doc <- function(doc,
                                 dplyr::slice_head(n=max_seq_len) %>%
                                 # step 6: (nill here)
                                 # step 7: apply mask for the sake of pre-training
-                                dplyr::mutate(idx = ifelse(prior, idx, mask_id)))
+                                dplyr::mutate(idx = ifelse(prior, idx, mask_id)) %>%
+                                # bug remove null token
+                                filter(!is.null(idx))
+  )
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
@@ -406,14 +409,14 @@ create_features_from_docbank <- function(text_path,
   mask_id <- .mask_id(tokenizer)
   txt_col_names <- c("text", "xmin", "ymin", "xmax", "ymax", "font", "class")
   # turn both file_path into file_name vector
-  if (is_path(text_path) & is_path(image_path)) {
+  if (fs::is_dir(text_path) & fs::is_dir(image_path)) {
     # list all files in each path
-    text_files <- list.files(text_path, full.names = TRUE, recursive = TRUE)
+    text_files <- fs::dir_ls(text_path, recurse = TRUE)
     image_path <- text_files %>%
       stringr::str_replace(text_path, image_path) %>%
       stringr::str_replace("\\.txt$", "_ori.jpg")
     text_path <- text_files
-  } else if (!is_file_list(text_path) | !is_file_list(image_path) ) {
+  } else if (!fs::is_file(text_path) | !fs::is_file(image_path) ) {
     rlang::abort("text_path is not consistant with image_path. Please review their values")
   }
 
@@ -489,7 +492,7 @@ create_features_from_docbank <- function(text_path,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
-                                           magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>% 
+                                           magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging

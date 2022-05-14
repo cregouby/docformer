@@ -98,7 +98,7 @@ LayoutLMSelfAttention <- torch::nn_module(
 
     self$dropout <- torch::nn_dropout(p=config$attention_dropout_prob)
     # get first non null within position_embedding_type, config$position_embedding_type, "absolute"
-    self$position_embedding_type <- (append(position_embedding_type,config$position_embedding_type) %>% append("absolute"))[[1]]
+    self$position_embedding_type <- position_embedding_type %||% config$position_embedding_type %||% "absolute"
     if (self$position_embedding_type %in% c("relative_key","relative_key_query")){
       self$max_position_embeddings <- config$max_position_embeddings
       self$distance_embedding <- torch::nn_embedding(2 * config$max_position_embeddings - 1, self$attention_head_size)
@@ -662,10 +662,10 @@ LayoutLMModel <- torch::nn_module(
     #
     # >>> last_hidden_states <- outputs$last_hidden_state
     # ```"""
-    output_attentions <- append(output_attentions,self$config$output_attentions)[[1]]
-    output_hidden_states <- append(output_hidden_states,self$config$output_hidden_states)[[1]]
+    output_attentions <- output_attentions %||% self$config$output_attentions
+    output_hidden_states <- output_hidden_states %||% self$config$output_hidden_states
 
-    return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
+    return_dict <- return_dict %||% self$config$use_return_dict
 
     if (!is.null(input_ids) & !is.null(inputs_embeds)){
       rlang::abort("You cannot specify both input_ids and inputs_embeds at the same time")
@@ -823,7 +823,7 @@ LayoutLMForMaskedLM<- torch::nn_module(
     #
     # >>> loss <- outputs$loss
     # ```"""
-    return_dict <- append(return_dict, self$config$use_return_dict)[[1]]
+    return_dict <- return_dict %||% self$config$use_return_dict
 
     outputs <- self$layoutlm(
       input_ids,
@@ -944,7 +944,7 @@ LayoutLMForSequenceClassification<- torch::nn_module(
     # >>> loss <- outputs$loss
     # >>> logits <- outputs$logits
     # ```"""
-    return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
+    return_dict <- return_dict %||% self$config$use_return_dict
 
     outputs <- self$layoutlm(
       input_ids=input_ids,
@@ -1081,7 +1081,7 @@ LayoutLMForTokenClassification<- torch::nn_module(
     # >>> loss <- outputs$loss
     # >>> logits <- outputs$logits
     # ```"""
-    return_dict <- append(return_dict,self$config$use_return_dict)[[1]]
+    return_dict <- return_dict %||% self$config$use_return_dict
 
     outputs <- self$layoutlm(
       input_ids=input_ids,
@@ -1108,8 +1108,8 @@ LayoutLMForTokenClassification<- torch::nn_module(
     }
 
     if (!return_dict){
-      output <- append(logits,outputs[-c(1:2)])[[1]]
-      return(append(loss, output)[[1]])
+      output <- logits %||% outputs[-c(1:2)]
+      return(loss %||% output)
     }
 
     result <- list(

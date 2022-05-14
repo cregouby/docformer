@@ -12,6 +12,7 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   # sentencepiece
   expect_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase),NA)
   expect_true(purrr::vec_depth(tokenized)==2)
+  expect_true(all)
   # hf tokenizer
   # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
   # expect_true(purrr::vec_depth(tokenized)==2)

@@ -12,16 +12,7 @@
 #' @return Returns `rhs(lhs)`.
 NULL
 
-is_file_list <- function(file) {
-  # TODO turn into fs:: commands
-  all(inherits(file,"character") & file.info(file)$isdir==FALSE)
-}
-
-is_path <- function(fpath) {
-  # currently only a single path
-  # TODO turn into fs:: commands
-  all(inherits(fpath,"character") & file.info(fpath)$isdir==TRUE) & length(fpath)==1
-}
+#' @importFrom rlang as_function %||% set_names global_env is_true is_logical
 
 #' Download and Cache Weights
 #'
