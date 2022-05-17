@@ -88,7 +88,17 @@ a named list will all needed hyperparameters of the Docformer implementation.
 Configuration for Docformer models
 }
 \examples{
-config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, epoch =5, verbose=TRUE)
-config <- docformer_config(pretrained_model_name="hf-internal-testing/tiny-layoutlm", batch_size=27, epoch =5, verbose=TRUE)
+config <- docformer_config(
+  num_attention_heads=6L,
+  num_hidden_layers=6L,
+  batch_size=27,
+  epoch =5,
+  verbose=TRUE
+  )
+config <- docformer_config(
+  pretrained_model_name="hf-internal-testing/tiny-layoutlm",
+  batch_size=27,
+  epoch =5
+  )
 
 }

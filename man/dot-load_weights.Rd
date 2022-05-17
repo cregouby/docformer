@@ -16,7 +16,7 @@
 \item{model_name}{Character; which public Transformers model weights to use. Must be compatible
 with \code{model} architecture!}
 
-\item{redownload}{}
+\item{redownload}{Logical: Shall we force redownload the model weights ?}
 }
 \value{
 The number of model parameters updated. (This is to enable error

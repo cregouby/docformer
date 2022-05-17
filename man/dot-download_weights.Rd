@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{.download_weights}
 \alias{.download_weights}
-\title{Download and Cache Weights}
+\title{Download and Cache Weights (the torchtransformer way)}
 \usage{
 .download_weights(
   model_name = "microsoft/layoutlm-base-uncased",
@@ -11,9 +11,12 @@
 )
 }
 \arguments{
+\item{model_name}{the name of the model to download or the local file}
+
 \item{redownload}{Logical; should the weights be downloaded fresh even if
-they're cached? This is not currently exposed to the end user, and exists
-mainly so we can test more easily.}
+they're cached? This is not currently exposed to the end user, and exists}
+
+\item{timeout}{Optional timeout in seconds for large file download.}
 }
 \value{
 The parsed weights as a named list.

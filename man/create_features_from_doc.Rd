@@ -42,9 +42,14 @@ Turn document into docformer torch tensor input feature
 }
 \examples{
 # load a tokenizer with <mask> encoding capability
-sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+sent_tok <- sentencepiece::sentencepiece_load_model(
+   system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+   )
 sent_tok$vocab_size <- sent_tok$vocab_size+1L
-sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+sent_tok$vocabulary <- rbind(
+  sent_tok$vocabulary,
+  data.frame(id=sent_tok$vocab_size, subword="<mask>")
+  )
 # turn pdf into feature
 doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
 doc_tt <- create_features_from_doc(doc, tokenizer=sent_tok)

@@ -32,8 +32,18 @@
 #' @export
 #'
 #' @examples
-#' config <- docformer_config(num_attention_heads=6L, num_hidden_layers=6L, batch_size=27, epoch =5, verbose=TRUE)
-#' config <- docformer_config(pretrained_model_name="hf-internal-testing/tiny-layoutlm", batch_size=27, epoch =5, verbose=TRUE)
+#' config <- docformer_config(
+#'   num_attention_heads=6L,
+#'   num_hidden_layers=6L,
+#'   batch_size=27,
+#'   epoch =5,
+#'   verbose=TRUE
+#'   )
+#' config <- docformer_config(
+#'   pretrained_model_name="hf-internal-testing/tiny-layoutlm",
+#'   batch_size=27,
+#'   epoch =5
+#'   )
 #'
 docformer_config <- function(pretrained_model_name=NA_character_,
                              coordinate_size = 96L,
@@ -153,6 +163,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
 #' The model fitting metrics append on top of the parent metrics in the returned TabNet model.
 #'
 #' @examples
+#' docformer_model <- docformer_fit(x)
 #' @return A DocFormer model object of class `docformer_fit` It can be used for serialization, predictions, or further fitting.
 #'
 #' @export

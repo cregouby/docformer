@@ -12,7 +12,7 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   # sentencepiece
   expect_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase),NA)
   expect_true(purrr::vec_depth(tokenized)==2)
-  expect_true(all)
+  expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
   # hf tokenizer
   # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
   # expect_true(purrr::vec_depth(tokenized)==2)
@@ -47,6 +47,8 @@ test_that("create_features_from_image works with default values", {
   expect_equal(image_tt$image$shape[1:2], c(1, 3))
   expect_lte(image_tt$image$shape[3], 500)
   expect_lte(image_tt$image$shape[4], 384)
+  # values
+  expect_true(all(image_tt$text %>% as.matrix >0))
 
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
@@ -72,6 +74,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(page1_tt$image$shape[1:2], c(1, 3))
   expect_lte(page1_tt$image$shape[3], 500)
   expect_lte(page1_tt$image$shape[4], 384)
+  # values
+  expect_true(all(page1_tt$text %>% as.matrix > 0))
 
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
@@ -94,6 +98,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(doc_tt$image$shape[1:2], c(2, 3))
   expect_lte(doc_tt$image$shape[3], 500)
   expect_lte(doc_tt$image$shape[4], 384)
+  # values
+  expect_true(all(doc_tt$text %>% as.matrix > 0))
 
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")

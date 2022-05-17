@@ -31,20 +31,19 @@ docformer_mlm <- torch::nn_module(
 
 #' Docformer Self-supervised training task
 #'
-#' @param config
-#' @param train_dataloader
-#' @param val_dataloader
-#' @param device
-#' @param epochs
-#' @param path
-#' @param classes
-#' @param lr
-#' @param weights
+#' @param config config
+#' @param train_dataloader training dataloader to use
+#' @param val_dataloader validation dataloader to use
+#' @param device "cpu" or "cuda" default to "auto"
+#' @param epochs number of epoch to train
+#' @param path path
+#' @param classes number of classes
+#' @param lr learning-rate
+#' @param weights weights
 #'
 #' @return
 #' @export
 #'
-#' @examples
 docformer_pretrain <- function(config,train_dataloader,val_dataloader,device,epochs,path,classes,lr = 5e-5,weights=weights) {
 
 }

@@ -21,6 +21,7 @@ resnet_feature_extractor <- torch::nn_module(
   initialize = function(){
     # use ResNet model for visual features embedding (remove classificaion head)
     # extract resnet50 `layer 4`
+    # TODO swith to torch::nn_prune_head as soon as in cran
     self$resnet50 <- .prune_head(torchvision::model_resnet50(pretrain=TRUE))
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048,768,kernel_size=1)

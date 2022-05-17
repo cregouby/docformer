@@ -17,7 +17,23 @@ docformer_pretrain(
 )
 }
 \arguments{
-\item{weights}{}
+\item{config}{config}
+
+\item{train_dataloader}{training dataloader to use}
+
+\item{val_dataloader}{validation dataloader to use}
+
+\item{device}{"cpu" or "cuda" default to "auto"}
+
+\item{epochs}{number of epoch to train}
+
+\item{path}{path}
+
+\item{classes}{number of classes}
+
+\item{lr}{learning-rate}
+
+\item{weights}{weights}
 }
 \value{
 

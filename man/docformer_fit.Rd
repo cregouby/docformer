@@ -57,3 +57,6 @@ The model fitting metrics append on top of the parent metrics in the returned Ta
 }
 }
 
+\examples{
+docformer_model <- docformer_fit(x)
+}

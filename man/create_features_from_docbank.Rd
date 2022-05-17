@@ -11,6 +11,7 @@ create_features_from_docbank(
   add_batch_dim = TRUE,
   target_geometry = "384x500",
   max_seq_len = 512,
+  batch_size = 1000,
   apply_mask_for_mlm = FALSE,
   extras_for_debugging = FALSE
 )
@@ -29,13 +30,11 @@ create_features_from_docbank(
 
 \item{max_seq_len}{size of the embedding vector in tokens}
 
+\item{batch_size}{number of images to process}
+
 \item{apply_mask_for_mlm}{add mask to the language model}
 
 \item{extras_for_debugging}{additionnal feature for debugging purposes}
-
-\item{save_to_disk}{(boolean) shall we save the result onto disk}
-
-\item{path_to_save}{result path}
 }
 \value{
 a list of named tensors
@@ -45,9 +44,14 @@ Turn DocBanks dataset into docformer torch tensor input feature
 }
 \examples{
 # load a tokenizer with <mask> encoding capability
-sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+sent_tok <- sentencepiece::sentencepiece_load_model(
+   system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+   )
 sent_tok$vocab_size <- sent_tok$vocab_size+1L
-sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+sent_tok$vocabulary <- rbind(
+   sent_tok$vocabulary,
+   data.frame(id=sent_tok$vocab_size, subword="<mask>")
+   )
 # turn pdf into feature
 text_path <- system.file(package="docformer", "DocBank_500K_txt")
 image_path <- system.file(package="docformer", "DocBank_500K_ori_img")

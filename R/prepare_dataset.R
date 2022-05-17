@@ -155,9 +155,14 @@ apply_ocr <- function(image) {
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
-#' sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+#' sent_tok <- sentencepiece::sentencepiece_load_model(
+#'   system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+#' )
 #' sent_tok$vocab_size <- sent_tok$vocab_size+1L
-#' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+#' sent_tok$vocabulary <- rbind(
+#'   sent_tok$vocabulary,
+#'   data.frame(id=sent_tok$vocab_size, subword="<mask>")
+#' )
 #' # turn pdf into feature
 #' image <- system.file(package="docformer", "inst", "2106.11539_1.png")
 #' image_tt <- create_features_from_image(image, tokenizer=sent_tok)
@@ -220,6 +225,8 @@ create_features_from_image <- function(image,
     # step 5.2: fill in a max_seq_len matrix
     dplyr::bind_rows(.empty_encoding(max_seq_len)) %>%
     tidyr::unnest_longer(col="idx") %>%
+    # bug remove null token
+    dplyr::filter(idx>0) %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
     # step 6: (nill here)
@@ -270,9 +277,14 @@ create_features_from_image <- function(image,
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
-#' sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+#' sent_tok <- sentencepiece::sentencepiece_load_model(
+#'    system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+#'    )
 #' sent_tok$vocab_size <- sent_tok$vocab_size+1L
-#' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+#' sent_tok$vocabulary <- rbind(
+#'   sent_tok$vocabulary,
+#'   data.frame(id=sent_tok$vocab_size, subword="<mask>")
+#'   )
 #' # turn pdf into feature
 #' doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
 #' doc_tt <- create_features_from_doc(doc, tokenizer=sent_tok)
@@ -327,19 +339,19 @@ create_features_from_doc <- function(doc,
   encoding <-  purrr::map2(encoding, mask_for_mlm, ~.x %>%
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
-                             # step 5.2: pad and slice to max_seq_len
+                             # step 5.2: pad to max_seq_len
                              dplyr::bind_rows(.empty_encoding(max_seq_len))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
                                 tidyr::unnest_longer(col="idx") %>%
+                                # bug remove null token
+                                dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len) %>%
                                 # step 6: (nill here)
                                 # step 7: apply mask for the sake of pre-training
-                                dplyr::mutate(idx = ifelse(prior, idx, mask_id)) %>%
-                                # bug remove null token
-                                filter(!is.null(idx))
+                                dplyr::mutate(idx = ifelse(prior, idx, mask_id))
   )
 
   # step 12 convert all to tensors
@@ -379,8 +391,7 @@ create_features_from_doc <- function(doc,
 #' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
-#' @param save_to_disk (boolean) shall we save the result onto disk
-#' @param path_to_save result path
+#' @param batch_size number of images to process
 #' @param apply_mask_for_mlm add mask to the language model
 #' @param extras_for_debugging additionnal feature for debugging purposes
 #'
@@ -389,9 +400,14 @@ create_features_from_doc <- function(doc,
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
-#' sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
+#' sent_tok <- sentencepiece::sentencepiece_load_model(
+#'    system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+#'    )
 #' sent_tok$vocab_size <- sent_tok$vocab_size+1L
-#' sent_tok$vocabulary <- rbind(sent_tok$vocabulary, data.frame(id=sent_tok$vocab_size, subword="<mask>"))
+#' sent_tok$vocabulary <- rbind(
+#'    sent_tok$vocabulary,
+#'    data.frame(id=sent_tok$vocab_size, subword="<mask>")
+#'    )
 #' # turn pdf into feature
 #' text_path <- system.file(package="docformer", "DocBank_500K_txt")
 #' image_path <- system.file(package="docformer", "DocBank_500K_ori_img")
@@ -403,6 +419,7 @@ create_features_from_docbank <- function(text_path,
                                      add_batch_dim=TRUE,
                                      target_geometry="384x500",
                                      max_seq_len=512,
+                                     batch_size=1000,
                                      apply_mask_for_mlm=FALSE,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
@@ -420,6 +437,7 @@ create_features_from_docbank <- function(text_path,
     rlang::abort("text_path is not consistant with image_path. Please review their values")
   }
 
+  # TODO add a coro::loop on length(image_path) %% batch_size to prevent oom
   # step 1 read images and its attributes
   original_image <- purrr::map(image_path, magick::image_read)
   w_h <- purrr::map_dfr(original_image, magick::image_info)
@@ -474,6 +492,8 @@ create_features_from_docbank <- function(text_path,
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
                                 tidyr::unnest_longer(col="idx") %>%
+                                # bug remove null token
+                                dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len) %>%
                                 # step 6: (nill here)
