@@ -81,8 +81,8 @@ docformer_embeddings <- torch::nn_module(
   },
   forward = function(x_feature, y_feature) {
     # Arguments:
-    #   x_features of shape (batch_size, seq_len, 8)
-    # y_features of shape (batch_size, seq_len, 8)
+    #   x_features of shape (batch_size, seq_len, 6)
+    # y_features of shape (batch_size, seq_len, 6)
     #
     # Outputs:
     #
@@ -97,15 +97,16 @@ docformer_embeddings <- torch::nn_module(
     # 5 -> diff bottom right x/y
     # 6 -> centroids diff x/y
 
-    batch <- x_feature.shape(1)
-    seq_len  <-  x_feature.shape(2)
-    num_feat  <-  x_feature.shape(3) # 6
+    batch <- x_feature$shape[1]
+    seq_len  <-  x_feature$shape[2]
+    num_feat  <-  x_feature$shape[3] # 6
     hidden_size  <-  self$config$hidden_size
     sub_dim  <-  hidden_size %/% num_feat
+    mbox_max <- self$config$max_2d_position_embeddings %>% as.integer()
 
     # Clamp and add a bias for handling negative values
-    x_feature[,,4:N] <- torch::torch_clamp(x_feature[,,4:N],-self$config["max_2d_position_embeddings"],self$config["max_2d_position_embeddings"])+self$config["max_2d_position_embeddings"]
-    y_feature[,,4:N] <- torch::torch_clamp(y_feature[,,4:N],-self$config["max_2d_position_embeddings"],self$config["max_2d_position_embeddings"])+self$config["max_2d_position_embeddings"]
+    x_feature[,,4:N] <- torch::torch_clamp(x_feature[,,4:N], -mbox_max, mbox_max) + mbox_max
+    y_feature[,,4:N] <- torch::torch_clamp(y_feature[,,4:N], -mbox_max, mbox_max) + mbox_max
 
     x_topleft_position_embeddings_v <- self$x_topleft_position_embeddings_v(x_feature[,,1])
     x_bottomright_position_embeddings_v <- self$x_bottomright_position_embeddings_v(x_feature[,,2])

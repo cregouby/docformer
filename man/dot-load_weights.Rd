@@ -7,14 +7,15 @@
 .load_weights(
   model,
   model_name = "microsoft/layoutlm-base-uncased",
-  redownload = FALSE
+  redownload = FALSE,
+  timeout = 720
 )
 }
 \arguments{
 \item{model}{A transformers-type \code{nn_module} model.}
 
 \item{model_name}{Character; which public Transformers model weights to use. Must be compatible
-with \code{model} architecture!}
+with \code{model} architecture!. Can be an local file name.}
 
 \item{redownload}{Logical: Shall we force redownload the model weights ?}
 }

@@ -243,7 +243,7 @@ create_features_from_image <- function(image,
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
   image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()
   # step 13: add tokens for debugging
 
@@ -363,7 +363,7 @@ create_features_from_doc <- function(doc,
                                                 as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
-                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # step 2 + 8 resize and normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            magick::image_scale(target_geometry) %>%
@@ -509,7 +509,7 @@ create_features_from_docbank <- function(text_path,
                                                 as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
-                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
@@ -550,7 +550,8 @@ save_featureRDS <- function(encoding_lst, file) {
 read_featureRDS <- function(file) {
   # step 15: load from disk
   encoding_lst <- readRDS(file = file)
-  encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_double()))
+  encoding_lst[1:2] <- encoding_lst[1:2] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_double()))
+  encoding_lst[[3]] <- torch::torch_tensor(encoding_lst[[3]],dtype = torch::torch_long())
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
   encoding_lst
 }

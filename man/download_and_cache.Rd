@@ -21,5 +21,6 @@ they're cached? This is not currently exposed to the end user, and exists}
 Download and Cache Weights (the torchvision way)
 }
 \examples{
-weight <- download_and_cache(url="https://media.githubusercontent.com/media/cregouby/docformer_models/main/inst/tiny-layoutlm.pth")
+url <- "https://media.githubusercontent.com/media/cregouby/docformer_models/main/inst/tiny-layoutlm.pth"
+weight <- download_and_cache(url=url)
 }
