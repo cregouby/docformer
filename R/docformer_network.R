@@ -132,16 +132,6 @@ docformer_embeddings <- torch::nn_module(
     y_bottomright_distance_to_prev_embeddings_v <- self$y_bottomright_distance_to_prev_embeddings_v(y_feature[,,5])
     y_centroid_distance_to_prev_embeddings_v <- self$y_centroid_distance_to_prev_embeddings_v(y_feature[,,6])
 
-    x_calculated_embedding_v <- torch::torch_cat(
-      c(x_topleft_position_embeddings_v,
-        x_bottomright_position_embeddings_v,
-        w_position_embeddings_v,
-        x_topleft_distance_to_prev_embeddings_v,
-        x_bottomright_distance_to_prev_embeddings_v ,
-        x_centroid_distance_to_prev_embeddings_v),
-      dim = -1
-    )
-
     y_calculated_embedding_v <- torch::torch_cat(
       c(y_topleft_position_embeddings_v,
         y_bottomright_position_embeddings_v,
@@ -151,7 +141,7 @@ docformer_embeddings <- torch::nn_module(
         y_centroid_distance_to_prev_embeddings_v),
     dim = -1
     )
-    v_bar_s <-  x_calculated_embedding_v + y_calculated_embedding_v + self.position_embeddings_v()
+    v_bar_s <-  x_calculated_embedding_v + y_calculated_embedding_v + self$position_embedding_v()
 
 
     x_topleft_position_embeddings_t <- self$x_topleft_position_embeddings_t(x_feature[,,1])
@@ -178,16 +168,6 @@ docformer_embeddings <- torch::nn_module(
     y_bottomright_distance_to_prev_embeddings_t <- self$y_bottomright_distance_to_prev_embeddings_t(y_feature[,,5])
     y_centroid_distance_to_prev_embeddings_t <- self$y_centroid_distance_to_prev_embeddings_t(y_feature[,,6])
 
-    x_calculated_embedding_t <- torch::torch_cat(
-      c(x_topleft_position_embeddings_t,
-        x_bottomright_position_embeddings_t,
-        w_position_embeddings_t,
-        x_topleft_distance_to_prev_embeddings_t,
-        x_bottomright_distance_to_prev_embeddings_t ,
-        x_centroid_distance_to_prev_embeddings_t),
-      dim = -1
-    )
-
     y_calculated_embedding_t <- torch::torch_cat(
       c(y_topleft_position_embeddings_t,
         y_bottomright_position_embeddings_t,
@@ -198,7 +178,7 @@ docformer_embeddings <- torch::nn_module(
       dim = -1
     )
 
-    t_bar_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self.position_embeddings_t()
+    t_bar_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self$position_embedding_t()
 
     return(list(v_bar_s,t_bar_s))
 
@@ -415,10 +395,10 @@ docformer_encoder <- torch::nn_module(
                      img_feat,
                      text_spatial_feat,
                      img_spatial_feat) {
-    for (encoder_block in self$layers){
+    for (id in seq_along(self$layers)){
       skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
-      attn <- encoder_block[[1]]
-      ff <- encoder_block[[2]]
+      attn <- self$layers[[id]][[1]]
+      ff <- self$layers[[id]][[2]]
       x <- attn(text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
       x <- ff(x) + x
       text_feat <- x

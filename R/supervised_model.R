@@ -1,7 +1,7 @@
 #' Configuration for Docformer models
 #'
-#' @param coordinate_size (int): Output size of each coordinate embedding (default 96)
-#' @param shape_size (int): Output size of each position embedding (default 96)
+#' @param coordinate_size (int): Output size of each coordinate embedding (default 128)
+#' @param shape_size (int): Output size of each position embedding (default 128)
 #' @param hidden_dropout_prob (float): Dropout probability in docformer_encoder block (default 0.1)
 #' @param attention_dropout_prob (float): Dropout probability in docformer_attention block (default 0.1)
 #' @param hidden_size (int): Size of the hidden layer in common with text embedding and positional embedding (default 768)
@@ -46,8 +46,8 @@
 #'   )
 #'
 docformer_config <- function(pretrained_model_name=NA_character_,
-                             coordinate_size = 96L,
-                             shape_size = 96L,
+                             coordinate_size = 128L,
+                             shape_size = 128L,
                              hidden_dropout_prob = 0.1,
                              attention_dropout_prob = 0.1,
                              hidden_size = 768L,
@@ -74,6 +74,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     if (pretrained_model_name %in% transformers_config$model_name) {
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
+      coordinate_size <- shape_size <- hidden_size %/% 6
       intermediate_ff_size_factor <-transformer_c$intermediate_ff_size_factor
       max_2d_position_embeddings <- transformer_c$max_2d_position_embeddings
       max_position_embeddings <- transformer_c$max_position_embeddings
@@ -87,6 +88,10 @@ docformer_config <- function(pretrained_model_name=NA_character_,
   # consistency check
   if (hidden_size %% num_attention_heads !=0) {
     rlang::abort(message="Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
+  }
+
+  if (2 * coordinate_size + 4 * shape_size != hidden_size) {
+    rlang::abort(message="Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
   }
 
   # resolve device

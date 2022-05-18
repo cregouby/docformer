@@ -237,10 +237,10 @@ create_features_from_image <- function(image,
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <-  encoding_long %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
   # y_feature
   y_features <- encoding_long %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
@@ -357,10 +357,10 @@ create_features_from_doc <- function(doc,
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # y_feature
   y_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
@@ -503,10 +503,10 @@ create_features_from_docbank <- function(text_path,
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # y_feature
   y_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_double())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
@@ -550,8 +550,7 @@ save_featureRDS <- function(encoding_lst, file) {
 read_featureRDS <- function(file) {
   # step 15: load from disk
   encoding_lst <- readRDS(file = file)
-  encoding_lst[1:2] <- encoding_lst[1:2] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_double()))
-  encoding_lst[[3]] <- torch::torch_tensor(encoding_lst[[3]],dtype = torch::torch_long())
+  encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_long()))
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
   encoding_lst
 }
