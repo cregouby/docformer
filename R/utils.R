@@ -135,7 +135,7 @@ NULL
 
 
 .prune_head <- function(model) {
-  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children)-1)])
+  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children)-2)])
   return(pruned_model)
 }
 

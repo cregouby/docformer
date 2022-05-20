@@ -26,15 +26,15 @@ resnet_feature_extractor <- torch::nn_module(
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048,768,kernel_size=1)
     self$relu1 <- torch::nn_relu()
-    self$linear1 <- torch::nn_linear(768,512)
+    self$linear1 <- torch::nn_linear(192,512)
   },
   forward = function(x) {
     x  <- self$resnet50(x)
     x  <- self$conv1(x)
     x  <- self$relu1(x)
-    y  <- x$reshape(c(x$shape[1:2], -1)) # "b e w h -> b e (w.h)" batch, embedding, w, h
-    y  <- y$movedim(1,2) # "b e s -> b s e", batch, embedding, sequence
+    y  <- x$reshape(c(x$shape[1:2], -1)) # "b e wl hl -> b e (wl.hl)" batch, embedding, width_low, height_low, wl*hl=192
     y  <- self$linear1(y)
+    y  <- y$permute(c(1,3,2)) # "b e s -> b s e", batch, embedding, sequence, movedim is 0-indexed
     return(y)
   }
 )
@@ -191,7 +191,7 @@ pre_norm <- torch::nn_module(
     self$fn <- fn
   },
   forward = function(x,...) {
-    return(self$fn(self$norm(x)), ...)
+    return(list(self$fn(self$norm(x)), ...))
   }
 )
 pre_norm_attention <- torch::nn_module(
@@ -204,13 +204,13 @@ pre_norm_attention <- torch::nn_module(
     self$fn <- fn
   },
   forward = function(t_bar, v_bar, t_bar_s, v_bar_s, ...) {
-    return(self$fn(
+    return(list(self$fn(
       self$norm_t_bar(t_bar),
       self$norm_v_bar(v_bar),
       self$norm_t_bar_s(t_bar_s),
       self$norm_v_bar_s(v_bar_s),
-    ), ...)
-
+      ), ...)
+    )
   }
 )
 
@@ -415,7 +415,7 @@ language_feature_extractor <- torch::nn_module(
     self$embedding_vector <- torch::nn_embedding(config$vocab_size, config$hidden_size, .weight=layoutlm_net$layoutlm$embeddings$word_embeddings$weight)
   },
   forward = function(x) {
-    return(self$embedding_vector(x))
+    return(self$embedding_vector(x)$squeeze(3))
   }
 )
 extract_features <- torch::nn_module(
@@ -451,7 +451,7 @@ docformer <- torch::nn_module(
   },
   forward = function(x) {
     x_ex_fe <- self$extract_feature(x)
-    x_enc <- self$encoder(x_ex_fe)
+    x_enc <- self$encoder(x_ex_fe[[1]], x_ex_fe[[2]], x_ex_fe[[3]], x_ex_fe[[4]])
     output <- self$dropout(x_enc)
 
   }
