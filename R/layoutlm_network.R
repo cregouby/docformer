@@ -574,7 +574,7 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
 )
 
 
-#' The LayoutLM model was proposed in [LayoutLM: Pre-training of Text and Layout for Document ImageUnderstanding](https://arxiv.org/abs/1912.13318)
+#' The LayoutLM model was proposed in [LayoutLM: Pre-training of Text and Layout for Document Image Understanding](https://arxiv.org/abs/1912.13318)
 #'  by Yiheng Xu, Minghao Li, Lei Cui, Shaohan Huang, Furu Wei and Ming Zhou.
 #'
 #' This model is a torch [nn_module()](https://torch.mlverse.org/docs/reference/nn_module.html). Use

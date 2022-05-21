@@ -85,6 +85,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     } else {
       rlang::warn("Provided model name cannot be found in `transformers_config`. using default config values")
     }
+  } else {
+    pretrained_model_name <- "microsoft/layoutlm-base-uncased"
   }
   # consistency check
   if (hidden_size %% num_attention_heads !=0) {
@@ -129,7 +131,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     is_decoder = FALSE,
     intermediate_size = intermediate_ff_size_factor * hidden_size,
     hidden_act = "gelu",
-    num_labels = 1L
+    num_labels = 1L,
+    pretrained_model_name = pretrained_model_name
   )
 
 

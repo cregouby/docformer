@@ -410,7 +410,7 @@ docformer_encoder <- torch::nn_module(
 language_feature_extractor <- torch::nn_module(
   "language_feature_extractor",
   initialize = function(config){
-    layoutlm_net <- LayoutLMForTokenClassification(config)$from_pretrained("microsoft/layoutlm-base-uncased")
+    layoutlm_net <- LayoutLMForTokenClassification(config)$from_pretrained(config$pretrained_model_name)
     self$embedding_vector <- torch::nn_embedding(config$vocab_size, config$hidden_size, .weight=layoutlm_net$layoutlm$embeddings$word_embeddings$weight)
   },
   forward = function(x) {

@@ -1,4 +1,4 @@
-test_that("LayoutLMForTokenClassification initialize works ", {
+test_that("LayoutLMForTokenClassification initialize works with default config", {
   config  <-  docformer_config()
   expect_error(layoutlm_net <- LayoutLMForTokenClassification(config), NA)
   expect_s3_class(layoutlm_net, "LayoutLMPreTrainedModel")
