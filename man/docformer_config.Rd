@@ -6,8 +6,8 @@
 \usage{
 docformer_config(
   pretrained_model_name = NA_character_,
-  coordinate_size = 96L,
-  shape_size = 96L,
+  coordinate_size = 128L,
+  shape_size = 128L,
   hidden_dropout_prob = 0.1,
   attention_dropout_prob = 0.1,
   hidden_size = 768L,
@@ -33,9 +33,9 @@ docformer_config(
 \arguments{
 \item{pretrained_model_name}{(character) : one of the supported model name in \code{transformers_config} to derive config from.}
 
-\item{coordinate_size}{(int): Output size of each coordinate embedding (default 96)}
+\item{coordinate_size}{(int): Output size of each coordinate embedding (default 128)}
 
-\item{shape_size}{(int): Output size of each position embedding (default 96)}
+\item{shape_size}{(int): Output size of each position embedding (default 128)}
 
 \item{hidden_dropout_prob}{(float): Dropout probability in docformer_encoder block (default 0.1)}
 
@@ -53,9 +53,9 @@ docformer_config(
 
 \item{max_relative_positions}{(int): Max number of position to look at in multimodal attention layer (default 8)}
 
-\item{num_attention_heads}{(int): Number of attention heads (default 12)}
+\item{num_attention_heads}{(int): Number of attention heads in the encoder (default 12)}
 
-\item{num_hidden_layers}{(int): Number of hidden layers in the encoder}
+\item{num_hidden_layers}{(int): Number of attention layers in the encoder}
 
 \item{pad_token_id}{(int): Id of the padding token}
 

@@ -14,5 +14,7 @@ bpe_tok_mask$vocabulary <- rbind(bpe_tok_mask$vocabulary, data.frame(id=bpe_tok_
 image <- system.file(package="docformer", "inst", "2106.11539_1.png")
 doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
 
+doc_tt <- create_features_from_doc(doc, sent_tok_mask)
+
 # Run after all tests
 withr::defer(testthat::teardown_env())

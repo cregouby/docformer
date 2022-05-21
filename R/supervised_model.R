@@ -10,8 +10,8 @@
 #' @param max_2d_position_embeddings (int): Max size of vector hosting the 2D embedding (default 1024)
 #' @param max_position_embeddings (int): Max sequence length for 1D embedding (default 512)
 #' @param max_relative_positions (int): Max number of position to look at in multimodal attention layer (default 8)
-#' @param num_attention_heads (int): Number of attention heads (default 12)
-#' @param num_hidden_layers (int): Number of hidden layers in the encoder
+#' @param num_attention_heads (int): Number of attention heads in the encoder (default 12)
+#' @param num_hidden_layers (int): Number of attention layers in the encoder
 #' @param pad_token_id (int): Id of the padding token
 #' @param vocab_size (int): Length of the vocabulary
 #' @param type_vocab_size (int): Length of the type vocabulary
@@ -74,7 +74,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     if (pretrained_model_name %in% transformers_config$model_name) {
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
-      coordinate_size <- shape_size <- hidden_size %/% 6
+      shape_size <- hidden_size %/% 6
+      coordinate_size <- (hidden_size - 4 * shape_size)/2
       intermediate_ff_size_factor <-transformer_c$intermediate_ff_size_factor
       max_2d_position_embeddings <- transformer_c$max_2d_position_embeddings
       max_position_embeddings <- transformer_c$max_position_embeddings

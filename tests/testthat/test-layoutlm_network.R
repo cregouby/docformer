@@ -9,16 +9,18 @@ test_that("LayoutLMForTokenClassification initialize works ", {
   expect_true(torch::is_nn_module(layoutlm_net$layoutlm$encoder))
   expect_true(torch::is_nn_module(layoutlm_net$layoutlm$pooler))
 #  expect_equivalent(layoutlm_net$layoutlm$embeddings$word_embeddings$weight$dtype, torch::torch_float())
-  expect_equal(layoutlm_net$layoutlm$embeddings$word_embeddings$weight$shape, c(30522L, 768L))
+  expect_equal(layoutlm_net$layoutlm$embeddings$word_embeddings$weight$shape, c(config$vocab_size, config$hidden_size))
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works from local file", {
   skip_on_cran()
   skip_on_os("windows")
-  config  <-  docformer_config(hidden_size=32L, max_position_embeddings=512L, max_2d_position_embeddings=128L, intermediate_ff_size_factor = 2L, num_attention_heads=2L, num_hidden_layers=2L, vocab_size=5000L)
+  config  <-  docformer_config(hidden_size=32L, coordinate_size=8L, shape_size=4L, max_position_embeddings=512L, max_2d_position_embeddings=128L, intermediate_ff_size_factor = 2L, num_attention_heads=2L, num_hidden_layers=2L, vocab_size=5000L)
   pretrained_model_name <- here::here("inst/tiny-layoutlm.pth")
   layoutlm_net <- LayoutLMForTokenClassification(config)
   expect_error(layoutlm_mod <- layoutlm_net$from_pretrained(pretrained_model_name=pretrained_model_name), NA)
+  expect_equal(length(layoutlm_mod$children), 3)
+  expect_equal(layoutlm_mod$children$layoutlm$embeddings$word_embeddings$weight$shape, c(config$vocab_size, config$hidden_size))
 })
 
 test_that("LayoutLMForTokenClassification from_pretrain works from public weights", {
@@ -28,4 +30,6 @@ test_that("LayoutLMForTokenClassification from_pretrain works from public weight
   config  <-  docformer_config(pretrained_model_name=pretrained_model_name)
   layoutlm_net <- LayoutLMForTokenClassification(config)
   expect_error(layoutlm_mod <- layoutlm_net$from_pretrained(pretrained_model_name=pretrained_model_name), NA)
+  expect_equal(length(layoutlm_mod$children), 3)
+  expect_equal(layoutlm_mod$children$layoutlm$embeddings$word_embeddings$weight$shape, c(config$vocab_size, config$hidden_size))
 })
