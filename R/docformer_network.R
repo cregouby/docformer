@@ -141,7 +141,7 @@ docformer_embeddings <- torch::nn_module(
         y_centroid_distance_to_prev_embeddings_v),
     dim = -1
     )
-    v_bar_s <-  x_calculated_embedding_v + y_calculated_embedding_v + self$position_embedding_v()
+    v_feat_s <-  x_calculated_embedding_v + y_calculated_embedding_v + self$position_embedding_v()
 
 
     x_topleft_position_embeddings_t <- self$x_topleft_position_embeddings_t(x_feature[,,1])
@@ -178,9 +178,9 @@ docformer_embeddings <- torch::nn_module(
       dim = -1
     )
 
-    t_bar_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self$position_embedding_t()
+    t_feat_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self$position_embedding_t()
 
-    return(list(v_bar_s,t_bar_s))
+    return(list(v_feat_s,t_feat_s))
 
   }
 )
@@ -190,26 +190,25 @@ pre_norm <- torch::nn_module(
     self$norm <- torch::nn_layer_norm(dim)
     self$fn <- fn
   },
-  forward = function(x,...) {
-    return(list(self$fn(self$norm(x)), ...))
+  forward = function(x) {
+    return(self$fn(self$norm(x)))
   }
 )
 pre_norm_attention <- torch::nn_module(
   "pre_norm_attention",
   initialize = function(dim, fn){
-    self$norm_t_bar <- torch::nn_layer_norm(dim)
-    self$norm_v_bar <- torch::nn_layer_norm(dim)
-    self$norm_t_bar_s <- torch::nn_layer_norm(dim)
-    self$norm_v_bar_s <- torch::nn_layer_norm(dim)
+    self$norm_t_feat <- torch::nn_layer_norm(dim)
+    self$norm_v_feat <- torch::nn_layer_norm(dim)
+    self$norm_t_feat_s <- torch::nn_layer_norm(dim)
+    self$norm_v_feat_s <- torch::nn_layer_norm(dim)
     self$fn <- fn
   },
-  forward = function(t_bar, v_bar, t_bar_s, v_bar_s, ...) {
-    return(list(self$fn(
-      self$norm_t_bar(t_bar),
-      self$norm_v_bar(v_bar),
-      self$norm_t_bar_s(t_bar_s),
-      self$norm_v_bar_s(v_bar_s),
-      ), ...)
+  forward = function(text_feat, img_feat, text_spatial_feat, img_spatial_feat) {
+    return(self$fn(
+              self$norm_t_feat(text_feat),
+              self$norm_v_feat(img_feat),
+              self$norm_t_feat_s(text_spatial_feat),
+              self$norm_v_feat_s(img_spatial_feat))
     )
   }
 )
@@ -243,7 +242,7 @@ relative_position <- torch::nn_module(
     range_vec_k  <-  torch::torch_arange(1, max_seq_length)
     distance_mat  <-  range_vec_k[NULL, ..] - range_vec_q[.., NULL]
     distance_mat_clipped  <-  torch::torch_clamp(distance_mat, -self$max_relative_position, self$max_relative_position)
-    final_mat  <-  distance_mat_clipped + self$max_relative_position
+    final_mat  <-  distance_mat_clipped + self$max_relative_position + 1
     self$final_mat  <-  final_mat$to(dtype=torch::torch_long())
   },
   forward = function(length_q, length_k) {
@@ -362,7 +361,7 @@ multimodal_attention_layer <- torch::nn_module(
 
     context <- text_context + img_context
     dim <- context$shape
-    embeddings <- context$permute(c(2,3,1,4))$reshape(c(dim[1], dim[2], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
+    embeddings <- context$permute(c(2,3,1,4))$reshape(c(dim[2], dim[3], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
     return(self$to_out(embeddings))
   }
 )
@@ -432,10 +431,10 @@ extract_features <- torch::nn_module(
     x_feature <- encoding$x_features
     y_feature <- encoding$y_features
 
-    v_bar <- self$visual_feature(image)
-    t_bar <- self$language_feature(language)
-    v_bar_s_t_bar_s <- self$spatial_feature(x_feature, y_feature)
-    return(list(v_bar, t_bar, v_bar_s_t_bar_s[[1]], v_bar_s_t_bar_s[[2]]))
+    v_feat <- self$visual_feature(image)
+    t_feat <- self$language_feature(language)
+    v_feat_s_t_feat_s <- self$spatial_feature(x_feature, y_feature)
+    return(list(v_feat, t_feat, v_feat_s_t_feat_s[[1]], v_feat_s_t_feat_s[[2]]))
 
   }
 )
