@@ -1,6 +1,6 @@
 ## code to prepare `model_url` dataset goes here
 hf_url_prefix <- "https://huggingface.co/"
-hf_url_suffix <- "/resolve/main/pytorch_model.bin"
+hf_model_suffix <- "/resolve/main/pytorch_model.bin"
 hf_tokenizer_suffix <- "/resolve/main/tokenizer.json"
 gh_url_prefix <- "https://media.githubusercontent.com/media/cregouby/docformer_models/main/inst/"
 gh_url_suffix <- ".pth"
@@ -20,10 +20,11 @@ transformers_config <- tibble::tribble(
   # "clee7/layoutlm-finetune-sroie", 768L, 12L, 12L, 512L, 1024L, 30522L, 4L,     13L,"clee7/layoutlm-finetune-sroie",   "hf",
   "hf-internal-testing/tiny-layoutlm", 32L, 2L, 2L, 512L, 128L, 5000L, 2L, 2L, "hf-internal-testing/tiny-layoutlm", "gh"
 ) %>%
-  dplyr::mutate(url = dplyr::case_when(flavor=="hf" ~ paste0(hf_url_prefix, url, hf_url_suffix),
-                                       flavor=="gh" ~ paste0(gh_url_prefix, stringr::str_split(url,"/", simplify=TRUE)[,2], gh_url_suffix)),
-                tokenizer_json = paste0(hf_url_prefix, url, hf_tokenizer_suffix)
-                )
+  dplyr::mutate(
+    tokenizer_json = paste0(hf_url_prefix, url, hf_tokenizer_suffix),
+    url = dplyr::case_when(flavor=="hf" ~ paste0(hf_url_prefix, url, hf_model_suffix),
+                           flavor=="gh" ~ paste0(gh_url_prefix, stringr::str_split(url,"/", simplify=TRUE)[,2], gh_url_suffix))
+  )
 
 
 

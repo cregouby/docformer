@@ -139,6 +139,27 @@ apply_ocr <- function(image) {
 
 }
 
+create_feature <- function(filepath, config) {
+  if (fs::is_dir(filepath)) {
+    filepath <- list.files(filepath)
+  }
+  # check if tokenizer url exist
+  tok_url <- transformers_config[transformers_config$model_name==config$pretrained_model_name,]$tokenizer_json
+  stopifnot("Tokenizer url cannot be found for model from config file" = length(tok_url)>0)
+
+  # initialize tokenizer
+  tok_json <- jsonlite::stream_in(url(tok_url))
+  tok_pkg <- dplyr::case_when((tok_json$model$type %||% tok_json$decoder$type) == "BPE" ~ "tokenizers.bpe",
+                              (tok_json$model$type %||% tok_json$decoder$type) == "WordPiece" ~ "sentencepiece",
+                              TRUE ~ "Unknown")
+  tok_tmp <- tempfile(fileext = "json")
+  jsonlite::stream_out(tok_json, file(tok_tmp))
+  tokenizer <- dplyr::case_when(tok_pkg == "tokenizers.bpe" ~ tokenizers.bpe::bpe_load_model(tok_tmp),
+                                tok_pkg == "sentencepiece" ~ sentencepiece::sentencepiece_load_model(tok_tmp))
+  # dispatch files according to their extension
+
+  # coro loop on files
+}
 #' Turn image into docformer torch tensor input feature
 #'
 #' @param image file path, url, or raw vector to image (png, tiff, jpeg, etc)
