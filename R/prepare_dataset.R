@@ -152,7 +152,7 @@ create_feature <- function(filepath, config) {
   tok_pkg <- dplyr::case_when((tok_json$model$type %||% tok_json$decoder$type) == "BPE" ~ "tokenizers.bpe",
                               (tok_json$model$type %||% tok_json$decoder$type) == "WordPiece" ~ "sentencepiece",
                               TRUE ~ "Unknown")
-  tok_tmp <- tempfile(fileext = "json")
+  tok_tmp <- tempfile(fileext = ".json")
   jsonlite::stream_out(tok_json, file(tok_tmp))
   tokenizer <- dplyr::case_when(tok_pkg == "tokenizers.bpe" ~ tokenizers.bpe::bpe_load_model(tok_tmp),
                                 tok_pkg == "sentencepiece" ~ sentencepiece::sentencepiece_load_model(tok_tmp))
