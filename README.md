@@ -4,6 +4,9 @@
 # docformer
 
 <!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
 <!-- badges: end -->
 
 {docformer} is an implementation of [DocFormer: End-to-End Transformer
@@ -32,27 +35,15 @@ You can install the development version of docformer like so:
 ``` r
 # install.packages("remotes")
 remotes::install_github("cregouby/docformer")
-#> Downloading GitHub repo cregouby/docformer@HEAD
-#> 
-#> * checking for file ‘/tmp/RtmpwQw1Qo/remotesd972d1f1ce550/cregouby-docformer-f86c8e1/DESCRIPTION’ ... OK
-#> * preparing ‘docformer’:
-#> * checking DESCRIPTION meta-information ... OK
-#> * checking for LF line-endings in source and make files and shell scripts
-#> * checking for empty or unneeded directories
-#> * building ‘docformer_0.1.0.tar.gz’
-#> Installation du package dans '/tmp/Rtmpngo7rO/temp_libpath30e360d20857f'
-#> (car 'lib' n'est pas spécifié)
-#> Adding 'docformer_0.1.0_R_x86_64-pc-linux-gnu.tar.gz' to the cache
 ```
 
 docformer currently supports the `{sentencepiece}` package for
-tokenization prerequisites, and relies on `{pdftools}` for digitally
-born pdfs, and `{tesseract}` with `{magick}` for OCR documents.
+tokenization prerequisites, and relies on `{pdftools}` for
+digitally-born pdfs, and `{tesseract}` with `{magick}` for OCR
+documents.
 
 ``` r
-install.packages("sentencepiece")
-#> Installation du package dans '/tmp/Rtmpngo7rO/temp_libpath30e360d20857f'
-#> (car 'lib' n'est pas spécifié)
+if (! ("sentencepiece" %in% rownames(installed.packages()))) { install.packages("sentencepiece") }
 ```
 
 ## Usage Example
@@ -80,11 +71,43 @@ tok_model$vocabulary <- rbind(tok_model$vocabulary, data.frame(id=tok_model$voca
 doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
 ```
 
+### Import a pretrained model
+
+``` r
+config  <-  docformer_config(pretrained_model_name = "microsoft/layoutlm-base-uncased")
+docformer_model <- docformer(config)
+```
+
+### or shape your own model
+
+``` r
+config  <-  docformer_config(hidden_size = 76L, max_position_embeddings = 52L, num_attention_heads = 4L,num_hidden_layers = 3L, vocab_size = 5000L, device = "cpu")
+docformer_model <- docformer(config)
+```
+
 ### Pretrain the model (Work in progress)
 
-A self-supervised training can be run with
+A self-supervised training task can be run with
 
 ``` r
 # train a model from that tensor
-# docformer_model <- docformer_pretrain(doc_tensor)
+# docformer_ssl <- docformer_pretrain(doc_tensor, epochs=30)
+```
+
+### Train the model (work in progress)
+
+…followed by a supervised training task on some annotated documents…
+
+``` r
+# docformer_model <- docformer_fit(doc_tensor, from_model=docformer_ssl, epochs=30)
+```
+
+### Predict with the model
+
+Predict with the headless model gives a document-layout embedding tensor
+of shape \[ <document pages>, <max_position_embeddings>, <hidden_size>
+\]
+
+``` r
+doc_embedding <- docformer_model(doc_tensor)
 ```
