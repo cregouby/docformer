@@ -119,7 +119,36 @@ apply_ocr <- function(image) {
   return(mask_id)
 }
 
-.empty_encoding <- function(max_seq_len, mask_id) {
+.pad_id <- function(tokenizer) {
+  UseMethod(".pad_id")
+}
+.pad_id.default <- function(tokenizer ) {
+  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
+}
+.pad_id.tokenizer <- function(tokenizer) {
+  pad_id <- tokenizer$encode("[PAD]")$ids
+  if (length(pad_id)==0) {
+    rlang::abort("tokenizer do not encode `[PAD]` properly.")
+  }
+  return(pad_id)
+}
+.pad_id.youtokentome <- function(tokenizer) {
+  pad_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<PAD>",]$id
+  if (length(pad_id)==0) {
+    rlang::abort("tokenizer do not encode `<PAD>` properly.")
+  }
+  return(pad_id)
+}
+.pad_id.sentencepiece <- function(tokenizer) {
+  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
+  pad_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<pad>",]$id
+  if (length(pad_id)==0) {
+    rlang::abort("tokenizer do not encode `<pad>` properly.")
+  }
+  return(pad_id)
+}
+
+.padding_encode <- function(max_seq_len, pad_id) {
    dplyr::tibble(xmin = rep(0,max_seq_len),
                                   ymin = rep(0,max_seq_len),
                                   xmax = rep(0,max_seq_len),
@@ -133,7 +162,7 @@ apply_ocr <- function(image) {
                                   x_center_d = rep(0,max_seq_len),
                                   y_center_d = rep(0,max_seq_len),
                                   text = NA_character_,
-                                  idx = list(mask_id),
+                                  idx = list(pad_id),
                                   prior=TRUE)
 
 
@@ -198,6 +227,7 @@ create_features_from_image <- function(image,
 
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
+  pad_id <- .pad_id(tokenizer)
   # step 1 read images and its attributes
   original_image <- magick::image_read(image)
   w_h <- magick::image_info(original_image)
@@ -244,7 +274,7 @@ create_features_from_image <- function(image,
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
-    dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id)) %>%
+    dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
     # bug remove null token
     dplyr::filter(idx>0) %>%
@@ -319,6 +349,7 @@ create_features_from_doc <- function(doc,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
+  pad_id <- .pad_id(tokenizer)
   # step 1 read document and its attributes
   w_h <- pdftools::pdf_pagesize(doc)
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
@@ -361,7 +392,7 @@ create_features_from_doc <- function(doc,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id))
+                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
@@ -445,6 +476,7 @@ create_features_from_docbank <- function(text_path,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
+  pad_id <- .pad_id(tokenizer)
   txt_col_names <- c("text", "xmin", "ymin", "xmax", "ymax", "font", "class")
   # turn both file_path into file_name vector
   if (fs::is_dir(text_path) & fs::is_dir(image_path)) {
@@ -508,7 +540,7 @@ create_features_from_docbank <- function(text_path,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id))
+                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
