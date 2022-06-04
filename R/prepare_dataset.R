@@ -119,7 +119,7 @@ apply_ocr <- function(image) {
   return(mask_id)
 }
 
-.empty_encoding <- function(max_seq_len) {
+.empty_encoding <- function(max_seq_len, mask_id) {
    dplyr::tibble(xmin = rep(0,max_seq_len),
                                   ymin = rep(0,max_seq_len),
                                   xmax = rep(0,max_seq_len),
@@ -133,7 +133,7 @@ apply_ocr <- function(image) {
                                   x_center_d = rep(0,max_seq_len),
                                   y_center_d = rep(0,max_seq_len),
                                   text = NA_character_,
-                                  idx = list(0),
+                                  idx = list(mask_id),
                                   prior=TRUE)
 
 
@@ -244,7 +244,7 @@ create_features_from_image <- function(image,
     # step 5.1 apply mask for the sake of pre-training
     dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
-    dplyr::bind_rows(.empty_encoding(max_seq_len)) %>%
+    dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
     # bug remove null token
     dplyr::filter(idx>0) %>%
@@ -361,7 +361,7 @@ create_features_from_doc <- function(doc,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len))
+                             dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
@@ -508,7 +508,7 @@ create_features_from_docbank <- function(text_path,
                              # step 5.1 apply mask for the sake of pre-training
                              dplyr::bind_cols(prior=.y) %>%
                              # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.empty_encoding(max_seq_len))
+                             dplyr::bind_rows(.empty_encoding(max_seq_len, mask_id))
   )
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
