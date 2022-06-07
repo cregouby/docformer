@@ -185,6 +185,10 @@ create_feature <- function(filepath, config) {
   jsonlite::stream_out(tok_json, file(tok_tmp))
   tokenizer <- dplyr::case_when(tok_pkg == "tokenizers.bpe" ~ tokenizers.bpe::bpe_load_model(tok_tmp),
                                 tok_pkg == "sentencepiece" ~ sentencepiece::sentencepiece_load_model(tok_tmp))
+  # check if tokenizer is compatible with model
+  stopifnot("Tokenizer vocabulary size is not compatible with the one from model config file" = tokenizer$vocab_size <= config$vocab_size)
+
+
   # dispatch files according to their extension
 
   # coro loop on files

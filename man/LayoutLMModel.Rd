@@ -2,7 +2,7 @@
 % Please edit documentation in R/layoutlm_network.R
 \name{LayoutLMModel}
 \alias{LayoutLMModel}
-\title{The LayoutLM model was proposed in \href{https://arxiv.org/abs/1912.13318}{LayoutLM: Pre-training of Text and Layout for Document ImageUnderstanding}
+\title{The LayoutLM model was proposed in \href{https://arxiv.org/abs/1912.13318}{LayoutLM: Pre-training of Text and Layout for Document Image Understanding}
 by Yiheng Xu, Minghao Li, Lei Cui, Shaohan Huang, Furu Wei and Ming Zhou.}
 \usage{
 LayoutLMModel(config)

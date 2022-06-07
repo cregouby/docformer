@@ -88,7 +88,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
   } else {
     pretrained_model_name <- "microsoft/layoutlm-base-uncased"
   }
-  # consistency check
+  # consistency check in model design parameters
   if (hidden_size %% num_attention_heads !=0) {
     rlang::abort(message="Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
   }
@@ -96,7 +96,6 @@ docformer_config <- function(pretrained_model_name=NA_character_,
   if (2 * coordinate_size + 4 * shape_size != hidden_size) {
     rlang::abort(message="Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
   }
-
   # resolve device
   if (device == "auto") {
     if (torch::cuda_is_available()){
@@ -104,9 +103,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     } else {
       device <- "cpu"
     }
-  } else {
-    device <- device
   }
+
   list(
     coordinate_size = coordinate_size,
     hidden_dropout_prob = hidden_dropout_prob,
