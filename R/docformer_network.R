@@ -105,8 +105,10 @@ docformer_embeddings <- torch::nn_module(
     mbox_max <- self$config$max_2d_position_embeddings
 
     # Clamp and add a bias for handling negative values
-    x_feature[,,4:N] <- torch::torch_clamp(x_feature[,,4:N], -mbox_max, mbox_max) + mbox_max
-    y_feature[,,4:N] <- torch::torch_clamp(y_feature[,,4:N], -mbox_max, mbox_max) + mbox_max
+    x_feature[,,3] <- x_feature[,,3]$clamp_min(1L)
+    y_feature[,,3] <- y_feature[,,3]$clamp_min(1L)
+    x_feature[,,4:N] <- x_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
+    y_feature[,,4:N] <- y_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
 
     x_topleft_position_embeddings_v <- self$x_topleft_position_embeddings_v(x_feature[,,1])
     x_bottomright_position_embeddings_v <- self$x_bottomright_position_embeddings_v(x_feature[,,2])

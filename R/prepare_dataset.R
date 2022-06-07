@@ -308,7 +308,7 @@ create_features_from_image <- function(image,
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
-  image <- original_image %>% torchvision::transform_resize(size = "256x333") %>% torchvision::transform_to_tensor()
+  image <- original_image %>% torchvision::transform_resize(size = "384x500") %>% torchvision::transform_to_tensor()
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
@@ -431,7 +431,7 @@ create_features_from_doc <- function(doc,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
   # step 2 + 8 resize and normlize the image for resnet
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
-                                           magick::image_scale("256x333") %>%
+                                           magick::image_scale("384x500") %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
 
@@ -579,7 +579,7 @@ create_features_from_docbank <- function(text_path,
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
-                                           magick::image_scale("256x333") %>%
+                                           magick::image_scale("384x500") %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
 
