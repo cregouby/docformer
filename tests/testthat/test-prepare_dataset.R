@@ -133,6 +133,27 @@ test_that("create_features_from_doc correctly pads small content pages", {
                regexp = NA)
 })
 
+test_that("create_features_from_doc correctly manages image with small target_geometry", {
+  expect_error(tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128"),
+               regexp = NA)
+  expect_type(tiny_tt, "list")
+  expect_s3_class(tiny_tt,"docformer_tensor")
+  expect_equal(attr(tiny_tt, "max_seq_len"), 512L)
+  expect_length(tiny_tt, 4)
+  expect_equal(tiny_tt$image$shape[1:2], c(2, 3))
+  expect_lte(tiny_tt$image$shape[3], 331)
+  expect_lte(tiny_tt$image$shape[4], 256)
+  # values
+  expect_true(all(doc_tt$text %>% as.matrix > 0))
+
+  # hf tokenizer
+  # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+
+  # tokenizer.bpe
+  expect_error(create_features_from_doc(doc, bpe_tok_mask, target_geometry = "128x128"),
+               regexp = NA)
+})
+
 test_that("features properly save to disk and can be restored", {
   doc_tt <- create_features_from_doc(doc, sent_tok_mask)
   image_tt <- create_features_from_image(image, sent_tok_mask)

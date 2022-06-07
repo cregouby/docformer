@@ -56,20 +56,23 @@ apply_ocr <- function(image) {
 #' @param tokenizer the tokenizer function
 #' @param x character vector to encode
 #' @param ...  unused
-#'
+#' @export
 #' @return list of token ids for each token
 .tokenize <- function(tokenizer, ...) {
   UseMethod(".tokenize")
 }
+#' @export
 .tokenize.default <- function(tokenizer, x ) {
   rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
 }
+#' @export
 .tokenize.tokenizer <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizer$encode(.x)$ids)
   # TODO BUG shall shift-right after max_seq_len slicing
   idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
   return(idx)
 }
+#' @export
 .tokenize.youtokentome <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
   # TODO BUG shall shift-right after max_seq_len slicing
@@ -79,6 +82,7 @@ apply_ocr <- function(image) {
     append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id)
   return(idx)
 }
+#' @export
 .tokenize.sentencepiece <- function(tokenizer, x) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
   # TODO BUG shall shift-right after max_seq_len slicing
@@ -90,12 +94,15 @@ apply_ocr <- function(image) {
   return(idx)
 }
 
+#' @export
 .mask_id <- function(tokenizer) {
   UseMethod(".mask_id")
 }
+#' @export
 .mask_id.default <- function(tokenizer ) {
   rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
 }
+#' @export
 .mask_id.tokenizer <- function(tokenizer) {
   mask_id <- tokenizer$encode("[MASK]")$ids
   if (length(mask_id)==0) {
@@ -103,6 +110,7 @@ apply_ocr <- function(image) {
   }
   return(mask_id)
 }
+#' @export
 .mask_id.youtokentome <- function(tokenizer) {
   mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<MASK>",]$id
   if (length(mask_id)==0) {
@@ -110,6 +118,7 @@ apply_ocr <- function(image) {
   }
   return(mask_id)
 }
+#' @export
 .mask_id.sentencepiece <- function(tokenizer) {
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   mask_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<mask>",]$id
@@ -224,7 +233,7 @@ create_feature <- function(filepath, config) {
 create_features_from_image <- function(image,
                             tokenizer,
                             add_batch_dim=TRUE,
-                            target_geometry="500x384",
+                            target_geometry="384x500",
                             max_seq_len=512,
                             apply_mask_for_mlm=FALSE,
                             debugging=FALSE) {
@@ -299,7 +308,7 @@ create_features_from_image <- function(image,
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
-  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()
+  image <- original_image %>% torchvision::transform_resize(size = "256x333") %>% torchvision::transform_to_tensor()
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
@@ -420,9 +429,9 @@ create_features_from_doc <- function(doc,
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
-  # step 2 + 8 resize and normlize the image
+  # step 2 + 8 resize and normlize the image for resnet
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
-                                           magick::image_scale(target_geometry) %>%
+                                           magick::image_scale("256x333") %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
 
@@ -570,7 +579,7 @@ create_features_from_docbank <- function(text_path,
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
-                                           magick::image_scale(target_geometry) %>%
+                                           magick::image_scale("256x333") %>%
                                            torchvision::transform_to_tensor()))
   # step 13: add tokens for debugging
 
