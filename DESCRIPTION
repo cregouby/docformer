@@ -22,9 +22,10 @@ Imports:
     rlang,
     methods,
     tibble,
+    pdftools,
     coro,
     vctrs,
-    torchvision (>= 0.4.1.9000)
+    torchvision 
 Suggests: 
     testthat (>= 3.0.0),
     modeldata,
@@ -35,6 +36,7 @@ Suggests:
     knitr,
     rmarkdown,
     sentencepiece,
+    tokenizers.bpe,
     vip,
     tidyverse,
     ggplot2,
