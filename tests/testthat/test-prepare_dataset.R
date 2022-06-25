@@ -141,8 +141,8 @@ test_that("create_features_from_doc correctly manages image with small target_ge
   expect_equal(attr(tiny_tt, "max_seq_len"), 512L)
   expect_length(tiny_tt, 4)
   expect_equal(tiny_tt$image$shape[1:2], c(2, 3))
-  expect_lte(tiny_tt$image$shape[3], 331)
-  expect_lte(tiny_tt$image$shape[4], 256)
+  expect_lte(tiny_tt$image$shape[3], 500)
+  expect_lte(tiny_tt$image$shape[4], 384)
   # values
   expect_true(all(doc_tt$text %>% as.matrix > 0))
 

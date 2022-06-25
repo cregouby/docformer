@@ -457,3 +457,72 @@ docformer <- torch::nn_module(
 
   }
 )
+# concatenationo of LayoutLMPredictionHeadTransform, LayoutLMLMPredictionHead and LayoutLMOnlyMLMHead
+mm_mlm_head <- torch::nn_module(
+  "mm_mlm_head",
+  initialize = function(config){
+    self$transf <- torch::nn_linear(config$hidden_size, config$hidden_size)
+    self$transf_act <-torch::nn_gelu()
+    self$transf_lnorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
+    self$decoder <- torch::nn_linear(config$hidden_size, config$vocab_size, bias=FALSE)
+    self$bias <- torch::nn_parameter(torch::torch_zeros(config$vocab_size))
+    self$decoder$biais <- self$bias
+  },
+  forward = function(hidden_state){
+    prediction_scores <- hidden_states %>%
+      self$transf() %>%
+      self$transf_act() %>%
+      self$transf_lnorm() %>%
+      self$decoder()
+  }
+)
+
+ltr_head <- torch::nn_module(
+  "ltr_head",
+  initialize = function(config){
+    # TODO
+
+  },
+  forward = function(){
+    # TODO
+
+  }
+)
+
+tdi_head <- torch::nn_module(
+  "tdi_head",
+  initialize = function(config){
+    # TODO
+
+  },
+  forward = function(){
+    # TODO
+
+  }
+)
+
+docformer_for_masked_lm <- torch::nn_module(
+  "docformer_for_masked_LM",
+  initialize = function(config){
+    self$config <- config
+    self$docformer <- docformer(config)
+    self$mm_mlm <- mm_mlm_head(config)
+    self$ltr <- ltr_head(config)
+    self$tdi <- tdi_head(config)
+    # TODO
+  },
+  forward = function(x){
+    # TODO compute embedding
+    embedding <- self$docformer(x)
+    # TODO compute Multi-Modal Masked Language Modeling (MM-MLM) loss
+    mm_mlm <- setf$mm_mlm(embedding)
+    # TODO compute Learn To Reconstruct (LTR) loss
+    ltr <- setf$ltr(embedding)
+    # TODO compute Text Describes Image (TDI) loss
+    tdi <- self$tdi(embedding)
+    # compute loss
+    loss <- 5 * mm_mlm + ltr + 5 * tdi
+    # TODO extrqct other piggy values
+    return(list(loss, embedding, hidden_state, attention))
+  }
+)
