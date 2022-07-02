@@ -491,27 +491,27 @@ docformer_for_masked_lm <- torch::nn_module(
     self$ltr <- ltr_head(config)
     self$tdi <- tdi_head(config)
     # TODO
-    self$mlm_loss_fct <- torch::nn_cross_entropy_loss
+    self$mlm_loss_fct <- torch::nn_cross_entropy_loss()
     # TODO fill_in loss fct
     self$ltr_loss_fct <- torch::torch_zeros_like
     # TODO fill_in loss fct
     self$tdi_loss_fct <- torch::torch_zeros_like
   },
-  forward = function(x){
+  forward = function(x, label){
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM) loss
     mm_mlm <- self$mm_mlm(embedding) # prediction_score
     # TODO compute Learn To Reconstruct (LTR) loss
-    ltr <- self$ltr(embedding)
+    ltr <- self$ltr(mm_mlm)
     # TODO compute Text Describes Image (TDI) loss
-    tdi <- self$tdi(embedding)
+    tdi <- self$tdi(mm_mlm)
     # compute loss
     if (!is.null(labels)){
       masked_lm_loss <- 5 *
-        self$mlm_loss_fct(mm_mlm$view(-1, self$config$vocab_size),labels$view(-1)) +
-        self$ltr_loss_fct(mm_mlm$view(-1, self$config$vocab_size)) +
-        5 * tdi_loss_fct(mm_mlm$view(-1, self$config$vocab_size))
+        self$mlm_loss_fct(mm_mlm,self$mm_mlm(self$docformer(label))) +
+        self$ltr_loss_fct(mm_mlm$view(-1)) +
+        5 * self$tdi_loss_fct(mm_mlm$view(-1))
     }
 
     # TODO BUG compute logits
