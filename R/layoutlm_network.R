@@ -1,11 +1,20 @@
 LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST <- c("layoutlm-base-uncased","layoutlm-large-uncased")
 
-ACT2FN = list(
-  "relu"= torch::nn_relu,
-  "swish"= torch::nn_hardswish,
-  "gelu"= torch::nn_gelu,
-  "tanh"= torch::nn_tanh
-)
+resolve_activation <- function(hidden_act) {
+  if (is.function(hidden_act))
+    hidden_act_fn <- hidden_act
+  else if (hidden_act =="relu")
+    hidden_act_fn <- torch::nn_relu()
+  else if (hidden_act =="swish")
+    hidden_act_fn <- torch::nn_hardswish()
+  else if (hidden_act =="gelu")
+    hidden_act_fn <- torch::nn_gelu()
+  else if (hidden_act =="tanh")
+    hidden_act_fn <- torch::nn_tanh()
+  else
+    rlang::abort(paste0(hidden_act," is not a supported activation function"))
+  hidden_act_fn
+}
 
 #'Construct the embeddings from word, position and token_type embeddings.
 LayoutLMEmbeddings <- torch::nn_module(
@@ -289,11 +298,7 @@ LayoutLMIntermediate <- torch::nn_module(
   "LayoutLMIntermediate",
   initialize = function(config){
     self$dense <- torch::nn_linear(config$hidden_size, config$intermediate_size)
-    if (is.character(config$hidden_act)){
-      self$intermediate_act_fn <- ACT2FN[config$hidden_act]
-    } else {
-      self$intermediate_act_fn <- config$hidden_act
-    }
+    self$intermediate_act_fn <- resolve_activation(config$hidden_act)
   },
   forward = function(hidden_states){
     hidden_states <- self$dense(hidden_states)
@@ -521,11 +526,7 @@ LayoutLMPredictionHeadTransform <- torch::nn_module(
   "LayoutLMPredictionHeadTransform",
   initialize = function(config){
     self$dense <- torch::nn_linear(config$hidden_size, config$hidden_size)
-    if (is.character(config$hidden_act)){
-      self$transform_act_fn <- ACT2FN[config$hidden_act]
-    } else {
-      self$transform_act_fn <- config$hidden_act
-    }
+    self$transform_act_fn <- resolve_activation(config$hidden_act)
     self$LayerNorm <- torch::nn_layer_norm(config$hidden_size, eps=config$layer_norm_eps)
 
   },
@@ -568,8 +569,7 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
 
   },
   forward = function(sequence_output){
-    prediction_scores <- self$predictions(sequence_output)
-    prediction_scores
+    self$predictions(sequence_output)
   }
 )
 

@@ -464,9 +464,9 @@ ltr_head <- torch::nn_module(
     # TODO
 
   },
-  forward = function(){
+  forward = function(x){
     # TODO
-
+    x
   }
 )
 
@@ -476,9 +476,9 @@ tdi_head <- torch::nn_module(
     # TODO
 
   },
-  forward = function(){
+  forward = function(x){
     # TODO
-
+    x
   }
 )
 
@@ -491,6 +491,11 @@ docformer_for_masked_lm <- torch::nn_module(
     self$ltr <- ltr_head(config)
     self$tdi <- tdi_head(config)
     # TODO
+    self$mlm_loss_fct <- torch::nn_cross_entropy_loss
+    # TODO fill_in loss fct
+    self$ltr_loss_fct <- torch::torch_zeros_like
+    # TODO fill_in loss fct
+    self$tdi_loss_fct <- torch::torch_zeros_like
   },
   forward = function(x){
     # compute sequence embedding
@@ -503,21 +508,10 @@ docformer_for_masked_lm <- torch::nn_module(
     tdi <- self$tdi(embedding)
     # compute loss
     if (!is.null(labels)){
-      mlm_loss_fct <- torch::nn_cross_entropy_loss()
-      # TODO fill_in loss fct
-      ltr_loss_fct <- torch::torch_zeros_like()
-      # TODO fill_in loss fct
-      tdi_loss_fct <- torch::torch_zeros_like()
-      masked_lm_loss <- 5 * mlm_loss_fct(
-        mm_mlm$view(-1, self$config$vocab_size),
-        labels$view(-1),
-      ) +
-        ltr_loss_fct(
-          mm_mlm$view(-1, self$config$vocab_size)
-        ) +
-        5 * tdi_loss_fct(
-          mm_mlm$view(-1, self$config$vocab_size)
-        )
+      masked_lm_loss <- 5 *
+        self$mlm_loss_fct(mm_mlm$view(-1, self$config$vocab_size),labels$view(-1)) +
+        self$ltr_loss_fct(mm_mlm$view(-1, self$config$vocab_size)) +
+        5 * tdi_loss_fct(mm_mlm$view(-1, self$config$vocab_size))
     }
 
     # TODO BUG compute logits
@@ -532,6 +526,5 @@ docformer_for_masked_lm <- torch::nn_module(
     )
     class(result) <-  "MaskedLMOutput"
     return(result)
-    return(list(loss, embedding, hidden_state, attention))
   }
 )
