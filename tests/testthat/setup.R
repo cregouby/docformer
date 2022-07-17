@@ -2,9 +2,9 @@
 sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
 # prepend tokenizer with missing tokens
 sent_tok_mask <- sent_tok
-sent_tok_mask$vocab_size <- sent_tok_mask$vocab_size+2L
+sent_tok_mask$vocab_size <- sent_tok_mask$vocab_size+3L
 # Add <mask> and <pad>. Here <mask> is at id=0
-sent_tok_mask$vocabulary <- rbind(data.frame(subword=c("<mask>","<pad>")),sent_tok_mask$vocabulary["subword"]) %>% tibble::rowid_to_column("id") %>% dplyr::mutate(id=id-1)
+sent_tok_mask$vocabulary <- rbind(data.frame(subword=c("<unk>","<mask>","<pad>")),sent_tok_mask$vocabulary["subword"]) %>% tibble::rowid_to_column("id") %>% dplyr::mutate(id=id-1)
 
 bpe_tok <- tokenizers.bpe::bpe_load_model(system.file(package="tokenizers.bpe", "extdata/youtokentome.bpe"))
 bpe_tok_mask <- bpe_tok

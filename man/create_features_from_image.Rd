@@ -8,9 +8,8 @@ create_features_from_image(
   image,
   tokenizer,
   add_batch_dim = TRUE,
-  target_geometry = "500x384",
+  target_geometry = "384x500",
   max_seq_len = 512,
-  apply_mask_for_mlm = FALSE,
   debugging = FALSE
 )
 }
@@ -25,8 +24,6 @@ create_features_from_image(
 \item{target_geometry}{image target magik geometry expected by the image model input}
 
 \item{max_seq_len}{size of the embedding vector in tokens}
-
-\item{apply_mask_for_mlm}{add mask to the language model}
 
 \item{debugging}{additionnal feature for debugging purposes}
 }

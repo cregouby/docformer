@@ -12,7 +12,6 @@ create_features_from_docbank(
   target_geometry = "384x500",
   max_seq_len = 512,
   batch_size = 1000,
-  apply_mask_for_mlm = FALSE,
   extras_for_debugging = FALSE
 )
 }
@@ -31,8 +30,6 @@ create_features_from_docbank(
 \item{max_seq_len}{size of the embedding vector in tokens}
 
 \item{batch_size}{number of images to process}
-
-\item{apply_mask_for_mlm}{add mask to the language model}
 
 \item{extras_for_debugging}{additionnal feature for debugging purposes}
 }

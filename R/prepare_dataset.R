@@ -69,26 +69,36 @@ apply_ocr <- function(image) {
 .tokenize.tokenizer <- function(tokenizer, x) {
   idx <- purrr::map(x,~tokenizer$encode(.x)$ids)
   # TODO BUG shall shift-right after max_seq_len slicing
-  idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
+  # idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
   return(idx)
 }
 #' @export
-.tokenize.youtokentome <- function(tokenizer, x) {
+.tokenize.youtokentome <- function(tokenizer, x, max_seq_len) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
-  # TODO BUG shall shift-right after max_seq_len slicing
+  # prepend sequence with CLS token
   idx[[1]] <- dplyr::first(idx) %>%
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id)
-  idx[[length(idx)]] <- dplyr::last(idx) %>%
+  # append SEP token at max_seq_len position
+  cum_idx <- cumsum(purrr::map_dbl(idx, length))
+  max_seq_idx <- last(which(cum_idx<max_seq_len))+1
+  sep_position <- cum_idx[max_seq_idx] - max_seq_len
+  idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
+    slice_head(sep_position - 1) %>%
     append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id)
   return(idx)
 }
 #' @export
-.tokenize.sentencepiece <- function(tokenizer, x) {
+.tokenize.sentencepiece <- function(tokenizer, x, max_seq_len) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
-  # TODO BUG shall shift-right after max_seq_len slicing
+  # prepend sequence with CLS token
   idx[[1]] <- dplyr::first(idx) %>%
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id)
-  idx[[length(idx)]] <- dplyr::last(idx) %>%
+  # append SEP token at max_seq_len position
+  cum_idx <- cumsum(purrr::map_dbl(idx, length))
+  max_seq_idx <- last(which(cum_idx<max_seq_len))+1
+  sep_position <- cum_idx[max_seq_idx] - max_seq_len
+  idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
+    slice_head(sep_position - 1) %>%
     append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id)
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
@@ -210,7 +220,6 @@ create_feature <- function(filepath, config) {
 #' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
-#' @param apply_mask_for_mlm add mask to the language model
 #' @param debugging additionnal feature for debugging purposes
 #'
 #' @return a list of named tensors
@@ -235,7 +244,6 @@ create_features_from_image <- function(image,
                             add_batch_dim=TRUE,
                             target_geometry="384x500",
                             max_seq_len=512,
-                            apply_mask_for_mlm=FALSE,
                             debugging=FALSE) {
 
   # step 0 prepare utilities datasets
@@ -273,23 +281,15 @@ create_features_from_image <- function(image,
       x_center_d = dplyr::lead(x_center) - x_center,
       y_center_d = dplyr::lead(y_center) - y_center,
       # step 4 tokenize words into `idx` and get their bbox
-      idx = .tokenize(tokenizer, text)) %>%
+      idx = .tokenize(tokenizer, text, max_seq_len)) %>%
     dplyr::select(-confidence, -x_center, -y_center) %>%
     tidyr::replace_na(list("", rep(0, 13)))
 
-  mask_for_mlm <- if (apply_mask_for_mlm) {
-    runif(n=nrow(encoding))>0.15
-  } else {
-    rep(TRUE, nrow(encoding))
-  }
-
   encoding_long <- encoding  %>%
-    # step 5.1 apply mask for the sake of pre-training
-    dplyr::bind_cols(prior=mask_for_mlm) %>%
     # step 5.2: fill in a max_seq_len matrix
     dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
-    # bug remove null token
+    # bug remove null token for <unk>
     dplyr::filter(idx>0) %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len) %>%
@@ -333,7 +333,6 @@ create_features_from_image <- function(image,
 #' @param max_seq_len size of the embedding vector in tokens
 #' @param save_to_disk (boolean) shall we save the result onto disk
 #' @param path_to_save result path
-#' @param apply_mask_for_mlm add mask to the language model
 #' @param extras_for_debugging additionnal feature for debugging purposes
 #'
 #' @return a list of named tensors
@@ -358,7 +357,6 @@ create_features_from_doc <- function(doc,
                                      add_batch_dim=TRUE,
                                      target_geometry="384x500",
                                      max_seq_len=512,
-                                     apply_mask_for_mlm=FALSE,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
@@ -391,29 +389,19 @@ create_features_from_doc <- function(doc,
                             x_center_d = dplyr::lead(x_center) - x_center,
                             y_center_d = dplyr::lead(y_center) - y_center,
                             # step 4 tokenize words into `idx` and get their bbox
-                            idx = .tokenize(tokenizer, text)) %>%
+                            idx = .tokenize(tokenizer, text, max_seq_len)) %>%
                             dplyr::select(-x_center, -y_center) %>%
                             tidyr::replace_na(list("", rep(0, 13))))
 
-  mask_for_mlm <- if (apply_mask_for_mlm) {
-    purrr::map(encoding, ~runif(n=nrow(.x))>0.15)
-  } else {
-    purrr::map(encoding, ~rep(TRUE, nrow(.x)))
-  }
-
-  encoding <-  purrr::map2(encoding, mask_for_mlm, ~.x %>%
-                             # step 5.1 apply mask for the sake of pre-training
-                             dplyr::bind_cols(prior=.y) %>%
-                             # step 5.2: pad to max_seq_len
-                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id))
-  )
-
   encoding_long <- purrr::map(encoding, ~.x  %>%
+                                # step 5.2: pad to max_seq_len
+                                dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
                                 # bug remove null token
                                 dplyr::filter(idx>0) %>%
-                                # step 5.3: truncate seq. to maximum length
-                                dplyr::slice_head(n=max_seq_len) %>%
+                                # step 5.3: truncate seq. to maximum length - 2
+                                dplyr::slice_head(n=max_seq_len-2) %>%
+                                # step 5.4: prepend
                                 # step 6: (nill here)
                                 # step 7: apply mask for the sake of pre-training
                                 dplyr::mutate(idx = ifelse(prior, idx, mask_id))
@@ -457,7 +445,6 @@ create_features_from_doc <- function(doc,
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
 #' @param batch_size number of images to process
-#' @param apply_mask_for_mlm add mask to the language model
 #' @param extras_for_debugging additionnal feature for debugging purposes
 #'
 #' @return a list of named tensors
@@ -485,7 +472,6 @@ create_features_from_docbank <- function(text_path,
                                      target_geometry="384x500",
                                      max_seq_len=512,
                                      batch_size=1000,
-                                     apply_mask_for_mlm=FALSE,
                                      extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
@@ -539,24 +525,13 @@ create_features_from_docbank <- function(text_path,
                                x_center_d = dplyr::lead(x_center) - x_center,
                                y_center_d = dplyr::lead(y_center) - y_center,
                                # step 4 tokenize words into `idx` and get their bbox
-                               idx = .tokenize(tokenizer, text)) %>%
+                               idx = .tokenize(tokenizer, text, max_seq_len)) %>%
                              dplyr::select(-x_center, -y_center) %>%
                              tidyr::replace_na(list("", rep(0, 13))))
 
-  mask_for_mlm <- if (apply_mask_for_mlm) {
-    purrr::map(encoding, ~runif(n=nrow(.x))>0.15)
-  } else {
-    purrr::map(encoding, ~rep(TRUE, nrow(.x)))
-  }
-
-  encoding <-  purrr::map2(encoding, mask_for_mlm, ~.x %>%
-                             # step 5.1 apply mask for the sake of pre-training
-                             dplyr::bind_cols(prior=.y) %>%
-                             # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id))
-  )
-
   encoding_long <- purrr::map(encoding, ~.x  %>%
+                             # step 5.2: pad and slice to max_seq_len
+                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
                                 # bug remove null token
                                 dplyr::filter(idx>0) %>%
@@ -619,4 +594,16 @@ read_featureRDS <- function(file) {
   encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_long()))
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
   encoding_lst
+}
+
+apply_mask_for_mm_mlm <- function(encoding_lst, mask_rate=0.15) {
+  # mask_for_mlm <- if (apply_mask_for_mlm) {
+  #   purrr::map(encoding, ~runif(n=nrow(.x))>mask_rate)
+  # } else {
+  #   purrr::map(encoding, ~rep(TRUE, nrow(.x)))
+  # }
+  #
+  # # step 5.1 apply mask for the sake of pre-training
+  # dplyr::bind_cols(prior=mask_for_mlm) %>%
+
 }
