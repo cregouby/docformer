@@ -80,7 +80,7 @@ apply_ocr <- function(image) {
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id %>% as.integer)
   # append SEP token at max_seq_len position
   cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- dplyr::last(which(cum_idx<max_seq_len))+1
+  max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
   pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1)
   idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
     append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id %>% as.integer, after=pre_sep_position)
@@ -94,7 +94,7 @@ apply_ocr <- function(image) {
     purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id %>% as.integer)
   # append SEP token at max_seq_len position
   cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- dplyr::last(which(cum_idx<max_seq_len))+1
+  max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
   pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1 )
   idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
     append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id %>% as.integer, after=pre_sep_position)
@@ -289,7 +289,7 @@ create_features_from_image <- function(image,
     dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
     # bug remove null token for <unk>
-    dplyr::filter(idx>0) %>%
+    # dplyr::filter(idx>0) %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len)
 
