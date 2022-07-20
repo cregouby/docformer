@@ -44,7 +44,7 @@ resize_align_bbox <- function(bbox, origin_w, origin_h, target_w, target_h) {
 apply_ocr <- function(image) {
   ocr_df <- tesseract::ocr_data(image) %>%
     dplyr::mutate(poor_word =( stringr::str_detect(word, "^\\W+$|\\W{3,}") | confidence <20),
-           bb = bbox %>% stringr::str_split(",") %>% purrr::map(as.integer)) %>%
+                  bb = bbox %>% stringr::str_split(",") %>% purrr::map(as.integer)) %>%
     tidyr::unnest_wider(bb, names_sep="_") %>%
     dplyr::filter(!poor_word) %>%
     dplyr::select(text=word, confidence, xmin=bb_1, ymin=bb_2, xmax=bb_3, ymax=bb_4)
@@ -77,14 +77,13 @@ apply_ocr <- function(image) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
   # prepend sequence with CLS token
   idx[[1]] <- dplyr::first(idx) %>%
-    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id)
+    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id %>% as.integer)
   # append SEP token at max_seq_len position
   cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- last(which(cum_idx<max_seq_len))+1
-  sep_position <- cum_idx[max_seq_idx] - max_seq_len
+  max_seq_idx <- dplyr::last(which(cum_idx<max_seq_len))+1
+  pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1)
   idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
-    slice_head(sep_position - 1) %>%
-    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id)
+    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id %>% as.integer, after=pre_sep_position)
   return(idx)
 }
 #' @export
@@ -92,14 +91,13 @@ apply_ocr <- function(image) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
   # prepend sequence with CLS token
   idx[[1]] <- dplyr::first(idx) %>%
-    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id)
+    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id %>% as.integer)
   # append SEP token at max_seq_len position
   cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- last(which(cum_idx<max_seq_len))+1
-  sep_position <- cum_idx[max_seq_idx] - max_seq_len
+  max_seq_idx <- dplyr::last(which(cum_idx<max_seq_len))+1
+  pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1 )
   idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
-    slice_head(sep_position - 1) %>%
-    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id)
+    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id %>% as.integer, after=pre_sep_position)
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
 }
@@ -168,21 +166,22 @@ apply_ocr <- function(image) {
 }
 
 .padding_encode <- function(max_seq_len, pad_id) {
-   dplyr::tibble(xmin = rep(0,max_seq_len),
-                                  ymin = rep(0,max_seq_len),
-                                  xmax = rep(0,max_seq_len),
-                                  ymax = rep(0,max_seq_len),
-                                  x_width = rep(0,max_seq_len),
-                                  y_height = rep(0,max_seq_len),
-                                  x_min_d = rep(0,max_seq_len),
-                                  y_min_d = rep(0,max_seq_len),
-                                  x_max_d = rep(0,max_seq_len),
-                                  y_max_d = rep(0,max_seq_len),
-                                  x_center_d = rep(0,max_seq_len),
-                                  y_center_d = rep(0,max_seq_len),
-                                  text = NA_character_,
-                                  idx = list(pad_id),
-                                  prior=TRUE)
+  dplyr::tibble(xmin = rep(0,max_seq_len),
+                ymin = rep(0,max_seq_len),
+                xmax = rep(0,max_seq_len),
+                ymax = rep(0,max_seq_len),
+                x_width = rep(0,max_seq_len),
+                y_height = rep(0,max_seq_len),
+                x_min_d = rep(0,max_seq_len),
+                y_min_d = rep(0,max_seq_len),
+                x_max_d = rep(0,max_seq_len),
+                y_max_d = rep(0,max_seq_len),
+                x_center_d = rep(0,max_seq_len),
+                y_center_d = rep(0,max_seq_len),
+                text = NA_character_,
+                idx = list(pad_id) #,
+                # prior=TRUE
+                )
 
 
 }
@@ -240,11 +239,11 @@ create_feature <- function(filepath, config) {
 #' image_tt <- create_features_from_image(image, tokenizer=sent_tok)
 #'
 create_features_from_image <- function(image,
-                            tokenizer,
-                            add_batch_dim=TRUE,
-                            target_geometry="384x500",
-                            max_seq_len=512,
-                            debugging=FALSE) {
+                                       tokenizer,
+                                       add_batch_dim=TRUE,
+                                       target_geometry="384x500",
+                                       max_seq_len=512,
+                                       debugging=FALSE) {
 
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
@@ -292,22 +291,18 @@ create_features_from_image <- function(image,
     # bug remove null token for <unk>
     dplyr::filter(idx>0) %>%
     # step 5.3: truncate seq. to maximum length
-    dplyr::slice_head(n=max_seq_len) %>%
-    # step 6: (nill here)
-    # step 7: apply mask for the sake of pre-training
-    dplyr::mutate(idx = ifelse(prior, idx, mask_id))
-    # step 8 normlize the image
+    dplyr::slice_head(n=max_seq_len)
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <-  encoding_long %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
   # y_feature
   y_features <- encoding_long %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
-    as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
   image <- original_image %>% torchvision::transform_resize(size = "384x500") %>% torchvision::transform_to_tensor()
   # step 13: add tokens for debugging
 
@@ -317,7 +312,7 @@ create_features_from_image <- function(image,
   } else {
     list(x_features=x_features, y_features=y_features, text=text, image=image)
   }
-  # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
+  # step 16: void keys to keep, resized_and_al&igned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
   attr(encoding_lst, "max_seq_len") <- max_seq_len
   encoding_lst
@@ -371,52 +366,48 @@ create_features_from_doc <- function(doc,
 
   # step 3 extract text
   encoding <-  purrr::pmap(list(pdftools::pdf_data(doc), as.list(scale_w), as.list(scale_h)),
-                          ~..1 %>% dplyr::mutate(
-                            # step 10 normalize the bbox
-                            xmin = round( x * ..2),
-                            ymin = round( y * ..3),
-                            xmax = round((x + width) * ..2),
-                            ymax = round((y + height) * ..3),
-                            x_center = round((xmin + xmax )/2),
-                            y_center = round((ymin + ymax )/2),
-                            # step 11 add relative spatial features
-                            x_width = xmax - xmin,
-                            y_height = ymax - ymin,
-                            x_min_d = dplyr::lead(xmin) - xmin,
-                            y_min_d = dplyr::lead(ymin) - ymin,
-                            x_max_d = dplyr::lead(xmax) - xmin,
-                            y_max_d = dplyr::lead(ymax) - ymin,
-                            x_center_d = dplyr::lead(x_center) - x_center,
-                            y_center_d = dplyr::lead(y_center) - y_center,
-                            # step 4 tokenize words into `idx` and get their bbox
-                            idx = .tokenize(tokenizer, text, max_seq_len)) %>%
-                            dplyr::select(-x_center, -y_center) %>%
-                            tidyr::replace_na(list("", rep(0, 13))))
+                           ~..1 %>% dplyr::mutate(
+                             # step 10 normalize the bbox
+                             xmin = round( x * ..2),
+                             ymin = round( y * ..3),
+                             xmax = round((x + width) * ..2),
+                             ymax = round((y + height) * ..3),
+                             x_center = round((xmin + xmax )/2),
+                             y_center = round((ymin + ymax )/2),
+                             # step 11 add relative spatial features
+                             x_width = xmax - xmin,
+                             y_height = ymax - ymin,
+                             x_min_d = dplyr::lead(xmin) - xmin,
+                             y_min_d = dplyr::lead(ymin) - ymin,
+                             x_max_d = dplyr::lead(xmax) - xmin,
+                             y_max_d = dplyr::lead(ymax) - ymin,
+                             x_center_d = dplyr::lead(x_center) - x_center,
+                             y_center_d = dplyr::lead(y_center) - y_center,
+                             # step 4 tokenize words into `idx` and get their bbox
+                             idx = .tokenize(tokenizer, text, max_seq_len)) %>%
+                             dplyr::select(-x_center, -y_center) %>%
+                             tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
                                 # step 5.2: pad to max_seq_len
                                 dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
                                 # bug remove null token
-                                dplyr::filter(idx>0) %>%
+                                # dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length - 2
-                                dplyr::slice_head(n=max_seq_len-2) %>%
-                                # step 5.4: prepend
-                                # step 6: (nill here)
-                                # step 7: apply mask for the sake of pre-training
-                                dplyr::mutate(idx = ifelse(prior, idx, mask_id))
+                                dplyr::slice_head(n=max_seq_len)
   )
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # y_feature
   y_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
-                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # step 2 + 8 resize and normlize the image for resnet
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            magick::image_scale("384x500") %>%
@@ -466,13 +457,13 @@ create_features_from_doc <- function(doc,
 #' docbanks_tt <- create_features_from_docbank(text_path, image_path, tokenizer=sent_tok)
 #'
 create_features_from_docbank <- function(text_path,
-                                     image_path,
-                                     tokenizer,
-                                     add_batch_dim=TRUE,
-                                     target_geometry="384x500",
-                                     max_seq_len=512,
-                                     batch_size=1000,
-                                     extras_for_debugging=FALSE) {
+                                         image_path,
+                                         tokenizer,
+                                         add_batch_dim=TRUE,
+                                         target_geometry="384x500",
+                                         max_seq_len=512,
+                                         batch_size=1000,
+                                         extras_for_debugging=FALSE) {
   # step 0 prepare utilities datasets
   mask_id <- .mask_id(tokenizer)
   pad_id <- .pad_id(tokenizer)
@@ -530,27 +521,25 @@ create_features_from_docbank <- function(text_path,
                              tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
-                             # step 5.2: pad and slice to max_seq_len
-                             dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
+                                # step 5.2: pad and slice to max_seq_len
+                                dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
                                 # bug remove null token
-                                dplyr::filter(idx>0) %>%
+                                # dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length
-                                dplyr::slice_head(n=max_seq_len) %>%
-                                # step 6: (nill here)
-                                # step 7: apply mask for the sake of pre-training
-                                dplyr::mutate(idx = ifelse(prior, idx, mask_id)))
+                                dplyr::slice_head(n=max_seq_len)
+  )
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
   x_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(xmin, xmax, x_width, x_min_d, x_max_d, x_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # y_feature
   y_features <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(ymin, ymax, y_height, y_min_d, y_max_d, y_center_d) %>%
-                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                                as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # text (used to be input_ids)
   text <- torch::torch_stack(purrr::map(encoding_long, ~.x  %>% dplyr::select(idx) %>%
-                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_long())))
+                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
@@ -579,7 +568,7 @@ create_features_from_docbank <- function(text_path,
 #' @export
 save_featureRDS <- function(encoding_lst, file) {
   # step 15: save to disk
-    saveRDS(purrr::map(encoding_lst, ~.x$to(device="cpu") %>% as.array), file = file)
+  saveRDS(purrr::map(encoding_lst, ~.x$to(device="cpu") %>% as.array), file = file)
 }
 
 #' Load feature tensor from disk
@@ -591,7 +580,7 @@ save_featureRDS <- function(encoding_lst, file) {
 read_featureRDS <- function(file) {
   # step 15: load from disk
   encoding_lst <- readRDS(file = file)
-  encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_long()))
+  encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_int()))
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
   encoding_lst
 }

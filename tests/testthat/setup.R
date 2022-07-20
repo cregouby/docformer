@@ -2,9 +2,9 @@
 sent_tok <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
 # prepend tokenizer with missing tokens
 sent_tok_mask <- sent_tok
-sent_tok_mask$vocab_size <- sent_tok_mask$vocab_size+3L
+sent_tok_mask$vocab_size <- sent_tok_mask$vocab_size+2L
 # Add <mask> and <pad>. Here <mask> is at id=0
-sent_tok_mask$vocabulary <- rbind(data.frame(subword=c("<unk>","<mask>","<pad>")),sent_tok_mask$vocabulary["subword"]) %>% tibble::rowid_to_column("id") %>% dplyr::mutate(id=id-1)
+sent_tok_mask$vocabulary <- rbind(data.frame(subword=c("<mask>","<pad>")),sent_tok_mask$vocabulary["subword"]) %>% tibble::rowid_to_column("id") %>% dplyr::mutate(id=id-1)
 
 bpe_tok <- tokenizers.bpe::bpe_load_model(system.file(package="tokenizers.bpe", "extdata/youtokentome.bpe"))
 bpe_tok_mask <- bpe_tok
@@ -13,9 +13,9 @@ bpe_tok_mask$vocabulary <- rbind( data.frame(subword=c("<MASK>")),bpe_tok_mask$v
 
 # hf_tok <- hftokenizers::(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
 
-image <- system.file(package="docformer", "inst", "2106.11539_1.png")
-doc <- system.file(package="docformer", "inst", "2106.11539_1_2.pdf")
-doc2 <- system.file(package="docformer", "inst", "OSI_1_2.pdf")
+image <- system.file(package="docformer",  "2106.11539_1.png")
+doc <- system.file(package="docformer", "2106.11539_1_2.pdf")
+doc2 <- system.file(package="docformer", "OSI_1_2.pdf")
 
 doc_tt <- create_features_from_doc(doc, sent_tok_mask)
 tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128")
