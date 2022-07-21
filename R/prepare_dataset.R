@@ -55,7 +55,7 @@ apply_ocr <- function(image) {
 #'
 #' @param tokenizer the tokenizer function
 #' @param x character vector to encode
-#' @param ...  unused
+#' @param max_seq_len  unused
 #' @export
 #' @return list of token ids for each token
 .tokenize <- function(tokenizer, ...) {
@@ -75,34 +75,35 @@ apply_ocr <- function(image) {
 #' @export
 .tokenize.youtokentome <- function(tokenizer, x, max_seq_len) {
   idx <- purrr::map(x,~tokenizers.bpe::bpe_encode(tokenizer, .x, type="ids")[[1]])
-  # prepend sequence with CLS token
-  idx[[1]] <- dplyr::first(idx) %>%
-    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id %>% as.integer)
-  # append SEP token at max_seq_len position
-  cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
-  pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1)
-  idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
-    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id %>% as.integer, after=pre_sep_position)
+  # # prepend sequence with CLS token
+  # idx[[1]] <- dplyr::first(idx) %>%
+  #   purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id %>% as.integer)
+  # # append SEP token at max_seq_len position
+  # cum_idx <- cumsum(purrr::map_dbl(idx, length))
+  # max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
+  # pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1)
+  # idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
+  #   append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id %>% as.integer, after=pre_sep_position)
   return(idx)
 }
 #' @export
 .tokenize.sentencepiece <- function(tokenizer, x, max_seq_len) {
   idx <- purrr::map(x,~sentencepiece::sentencepiece_encode(tokenizer, .x, type="ids")[[1]])
-  # prepend sequence with CLS token
-  idx[[1]] <- dplyr::first(idx) %>%
-    purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id %>% as.integer)
-  # append SEP token at max_seq_len position
-  cum_idx <- cumsum(purrr::map_dbl(idx, length))
-  max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
-  pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1 )
-  idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
-    append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id %>% as.integer, after=pre_sep_position)
-  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
+  # # prepend sequence with CLS token
+  # idx[[1]] <- dplyr::first(idx) %>%
+  #   purrr::prepend(tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id %>% as.integer)
+  # # append SEP token at max_seq_len position
+  # cum_idx <- cumsum(purrr::map_dbl(idx, length))
+  # max_seq_idx <- min(dplyr::last(which(cum_idx<max_seq_len))+1, length(idx))
+  # pre_sep_position <- max(0,max_seq_len - cum_idx[max_seq_idx-1] - 1 )
+  # idx[[max_seq_idx]] <- idx[[max_seq_idx]] %>%
+  #   append(tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id %>% as.integer, after=pre_sep_position)
+  # # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   return(idx)
 }
 
 #' @export
+#' @rdname special_tokens
 .mask_id <- function(tokenizer) {
   UseMethod(".mask_id")
 }
@@ -136,12 +137,18 @@ apply_ocr <- function(image) {
   return(mask_id)
 }
 
+#' Extrqct special tokens from tokenizer
+#'
+#' @export
+#' @rdname special_tokens
 .pad_id <- function(tokenizer) {
   UseMethod(".pad_id")
 }
+#' @export
 .pad_id.default <- function(tokenizer ) {
   rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
 }
+#' @export
 .pad_id.tokenizer <- function(tokenizer) {
   pad_id <- tokenizer$encode("[PAD]")$ids
   if (length(pad_id)==0) {
@@ -149,6 +156,7 @@ apply_ocr <- function(image) {
   }
   return(pad_id)
 }
+#' @export
 .pad_id.youtokentome <- function(tokenizer) {
   pad_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<PAD>",]$id
   if (length(pad_id)==0) {
@@ -156,6 +164,7 @@ apply_ocr <- function(image) {
   }
   return(pad_id)
 }
+#' @export
 .pad_id.sentencepiece <- function(tokenizer) {
   # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
   pad_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<pad>",]$id
@@ -163,6 +172,76 @@ apply_ocr <- function(image) {
     rlang::abort("tokenizer do not encode `<pad>` properly.")
   }
   return(pad_id)
+}
+
+#' @export
+#' @rdname special_tokens
+.sep_id <- function(tokenizer) {
+  UseMethod(".sep_id")
+}
+#' @export
+.sep_id.default <- function(tokenizer ) {
+  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
+}
+#' @export
+.sep_id.tokenizer <- function(tokenizer) {
+  sep_id <- tokenizer$encode("[SEP]")$ids
+  if (length(sep_id)==0) {
+    rlang::abort("tokenizer do not encode `[SEP]` properly.")
+  }
+  return(sep_id)
+}
+#' @export
+.sep_id.youtokentome <- function(tokenizer) {
+  sep_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<SEP>",]$id
+  if (length(sep_id)==0) {
+    rlang::abort("tokenizer do not encode `<SEP>` properly.")
+  }
+  return(sep_id)
+}
+#' @export
+.sep_id.sentencepiece <- function(tokenizer) {
+  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
+  sep_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="</s>",]$id
+  if (length(sep_id)==0) {
+    rlang::abort("tokenizer do not encode `</s>` properly.")
+  }
+  return(sep_id)
+}
+
+#' @export
+#' @rdname special_tokens
+.cls_id <- function(tokenizer) {
+  UseMethod(".cls_id")
+}
+#' @export
+.cls_id.default <- function(tokenizer ) {
+  rlang::abort(paste0(tokenizer," is not recognized as a supported tokenizer"))
+}
+#' @export
+.cls_id.tokenizer <- function(tokenizer) {
+  cls_id <- tokenizer$encode("[CLS]")$ids
+  if (length(cls_id)==0) {
+    rlang::abort("tokenizer do not encode `[CLS]` properly.")
+  }
+  return(cls_id)
+}
+#' @export
+.cls_id.youtokentome <- function(tokenizer) {
+  cls_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<CLS>",]$id
+  if (length(cls_id)==0) {
+    rlang::abort("tokenizer do not encode `<CLS>` properly.")
+  }
+  return(cls_id)
+}
+#' @export
+.cls_id.sentencepiece <- function(tokenizer) {
+  # see https://github.com/google/sentencepiece/blob/master/doc/special_symbols.md for <mask>
+  cls_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<s>",]$id
+  if (length(cls_id)==0) {
+    rlang::abort("tokenizer do not encode `<s>` properly.")
+  }
+  return(cls_id)
 }
 
 .padding_encode <- function(max_seq_len, pad_id) {
@@ -288,10 +367,9 @@ create_features_from_image <- function(image,
     # step 5.2: fill in a max_seq_len matrix
     dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
-    # bug remove null token for <unk>
-    # dplyr::filter(idx>0) %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len)
+   # TODO step 5.4 replace first and last with CLS_TOKEN_BOX
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
@@ -357,12 +435,19 @@ create_features_from_doc <- function(doc,
   mask_id <- .mask_id(tokenizer)
   pad_id <- .pad_id(tokenizer)
   # step 1 read document and its attributes
+  # TODO improvement: use the actual text boundaries for finer text accuracy
   w_h <- pdftools::pdf_pagesize(doc)
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
-  CLS_TOKEN_BOX <- c(0, 0, min(w_h$width), min(w_h$height))   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+  # TODO improvement : accept variable CLS_TOKEN_BOX  as it an be variable, but as per the paper, they have mentioned that it covers the whole image. Like:
+  # CLS_TOKEN_BOX <- bind_rows(xmin=0, ymin=0, x_width=w_h$width, y_height=w_h$height)
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
+
 
   # step 3 extract text
   encoding <-  purrr::pmap(list(pdftools::pdf_data(doc), as.list(scale_w), as.list(scale_h)),
@@ -392,10 +477,11 @@ create_features_from_doc <- function(doc,
                                 # step 5.2: pad to max_seq_len
                                 dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
-                                # bug remove null token
-                                # dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length - 2
-                                dplyr::slice_head(n=max_seq_len)
+                                dplyr::slice_head(n=max_seq_len-2) %>%
+                                # prepend sequence with CLS token
+                                dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long)
+                                # append SEP token at max_seq_len position
   )
 
   # step 12 convert all to tensors
@@ -524,10 +610,9 @@ create_features_from_docbank <- function(text_path,
                                 # step 5.2: pad and slice to max_seq_len
                                 dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
-                                # bug remove null token
-                                # dplyr::filter(idx>0) %>%
                                 # step 5.3: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len)
+                                # TODO step 5.4 replace first and last with CLS_TOKEN_BOX
   )
 
   # step 12 convert all to tensors

@@ -9,9 +9,9 @@
 \arguments{
 \item{tokenizer}{the tokenizer function}
 
-\item{...}{unused}
-
 \item{x}{character vector to encode}
+
+\item{max_seq_len}{unused}
 }
 \value{
 list of token ids for each token
