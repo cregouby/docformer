@@ -1,6 +1,6 @@
 test_that("docformer initialization works with default params", {
   config  <-  docformer_config()
-  expect_error(docformer_net <- docformer(config), NA)
+  expect_error(docformer_net <- docformer:::docformer(config), NA)
   #  validation on the output of extract_features layers
   expect_equal(length(docformer_net$encoder$layers$children), config$num_hidden_layers)
   expect_equal(docformer_net$extract_feature$visual_feature(doc_tt$image)$shape, c(2, config$max_position_embeddings, config$hidden_size))
@@ -12,7 +12,7 @@ test_that("docformer initialization works with default params", {
 
 test_that("docformer initialization works with standard pretrained model by name", {
   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
-  expect_error(docformer_net <- docformer(config), NA)
+  expect_error(docformer_net <- docformer:::docformer(config), NA)
   #  validation on the output of extract_features layers
   expect_equal(length(docformer_net$encoder$layers$children), config$num_hidden_layers)
   expect_equal(docformer_net$extract_feature$visual_feature(doc_tt$image)$shape, c(2, config$max_position_embeddings, config$hidden_size))
@@ -24,7 +24,7 @@ test_that("docformer initialization works with standard pretrained model by name
 
 test_that("docformer initialization works with non-standard pretrained model by name", {
   config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
-  expect_error(docformer_net <- docformer(config), NA)
+  expect_error(docformer_net <- docformer:::docformer(config), NA)
   #  validation on the output of extract_features layers
   expect_equal(length(docformer_net$encoder$layers$children), config$num_hidden_layers)
   expect_equal(docformer_net$extract_feature$visual_feature(tiny_tt$image)$shape, c(2, config$max_position_embeddings, config$hidden_size))
@@ -36,7 +36,7 @@ test_that("docformer initialization works with non-standard pretrained model by 
 
 test_that("docformer forward works with the expected tensor input", {
   config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
-  docformer_net <- docformer(config)
+  docformer_net <- docformer:::docformer(config)
   expect_error(output_tt <- docformer_net(tiny_tt), NA)
   expect_equal(output_tt$shape, c(2, config$max_position_embeddings, config$hidden_size))
 })

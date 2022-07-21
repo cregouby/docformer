@@ -19,7 +19,7 @@ doc2 <- system.file(package="docformer", "OSI_1_2.pdf")
 
 doc_tt <- create_features_from_doc(doc, sent_tok_mask)
 tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128")
-tiny_tt$text <- tiny_tt$text$clamp_max(5000)
+tiny_tt$text <- tiny_tt$text$clamp_max(4999)
 
 # Run after all tests
 withr::defer(testthat::teardown_env())

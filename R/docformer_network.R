@@ -416,7 +416,8 @@ language_feature_extractor <- torch::nn_module(
     self$embedding_vector <- torch::nn_embedding(config$vocab_size, config$hidden_size, .weight=layoutlm_net$layoutlm$embeddings$word_embeddings$weight)
   },
   forward = function(x) {
-    return(self$embedding_vector(x)$squeeze(3))
+    # shift text idx values to be 1-indexed
+    return(self$embedding_vector(x+1L)$squeeze(3))
   }
 )
 extract_features <- torch::nn_module(
