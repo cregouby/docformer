@@ -14,8 +14,6 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   expect_true(purrr::vec_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct  max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
-  expect_equal(sentencepiece::sentencepiece_decode(sent_tok, tokenized[[1]][[1]]),"")
-  expect_equal(sentencepiece::sentencepiece_decode(sent_tok, tokenized[[7]][[3]]),"")
   # hf tokenizer
   # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
   # expect_true(purrr::vec_depth(tokenized)==2)
@@ -24,9 +22,6 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   expect_true(purrr::vec_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
-  expect_equal(tokenizers.bpe::bpe_decode(bpe_tok, tokenized[[1]][[1]]),"<BOS>")
-  expect_equal(tokenizers.bpe::bpe_decode(bpe_tok, tokenized[[7]][[1]]),"<EOS>")
-
 })
 
 test_that("tokenizer that cannot encode MASK raise an error", {
@@ -52,9 +47,9 @@ test_that("create_features_from_image works with default values", {
   expect_equal(image_tt$y_features$shape, c(1, 512, 6))
   expect_equal(image_tt$text$shape, c(1, 512, 1))
   # first and last tensors are separators
-  expect_true(as.numeric(image_tt$text[1,1,1])==sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
-  expect_true(as.numeric(image_tt$text[1,512,1])==sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
-  expect_true(as.numeric(image_tt$text[1,1,1])==sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
+  expect_equal(as.numeric(image_tt$text[1,1,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
+  expect_equal(as.numeric(image_tt$text[1,512,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
+  expect_equal(as.numeric(image_tt$x_features[1,1,1]), as.numeric(image_tt$x_features[1,512,1]))
 
   expect_equal(image_tt$image$shape[1:2], c(1, 3))
   expect_lte(image_tt$image$shape[3], 500)
@@ -84,8 +79,9 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(page1_tt$y_features$shape, c(1, 512, 6))
   expect_equal(page1_tt$text$shape, c(1, 512, 1))
   # first and last tensors are separators
-  expect_true(as.numeric(image_tt$text[1,1,1])==sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
-  expect_true(as.numeric(image_tt$text[1,512,1])==sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
+  expect_equal(as.numeric(page1_tt$text[1,1,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
+  expect_equal(as.numeric(page1_tt$text[1,512,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
+  expect_equal(as.numeric(page1_tt$x_features[1,1,1]), as.numeric(page1_tt$x_features[1,512,1]))
 
   expect_equal(page1_tt$image$shape[1:2], c(1, 3))
   expect_lte(page1_tt$image$shape[3], 500)

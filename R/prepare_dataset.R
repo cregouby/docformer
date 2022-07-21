@@ -193,9 +193,9 @@ apply_ocr <- function(image) {
 }
 #' @export
 .sep_id.youtokentome <- function(tokenizer) {
-  sep_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<SEP>",]$id
+  sep_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<EOS>",]$id
   if (length(sep_id)==0) {
-    rlang::abort("tokenizer do not encode `<SEP>` properly.")
+    rlang::abort("tokenizer do not encode `<EOS>` properly.")
   }
   return(sep_id)
 }
@@ -228,9 +228,9 @@ apply_ocr <- function(image) {
 }
 #' @export
 .cls_id.youtokentome <- function(tokenizer) {
-  cls_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<CLS>",]$id
+  cls_id <- tokenizer$vocabulary[tokenizer$vocabulary$subword=="<BOS>",]$id
   if (length(cls_id)==0) {
-    rlang::abort("tokenizer do not encode `<CLS>` properly.")
+    rlang::abort("tokenizer do not encode `<BOS>` properly.")
   }
   return(cls_id)
 }
@@ -258,7 +258,7 @@ apply_ocr <- function(image) {
                 x_center_d = rep(0,max_seq_len),
                 y_center_d = rep(0,max_seq_len),
                 text = NA_character_,
-                idx = list(pad_id) #,
+                idx = pad_id #,
                 # prior=TRUE
                 )
 
@@ -334,7 +334,10 @@ create_features_from_image <- function(image,
     as.numeric()
   scale_w <- target_w_h[1] /  w_h$width
   scale_h <- target_w_h[2] / w_h$height
-  CLS_TOKEN_BOX <- c(0, 0, w_h$width, w_h$height)   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
 
   # step 2: resize image
   resized_image <- magick::image_resize(original_image, geometry=target_geometry)
@@ -364,12 +367,14 @@ create_features_from_image <- function(image,
     tidyr::replace_na(list("", rep(0, 13)))
 
   encoding_long <- encoding  %>%
-    # step 5.2: fill in a max_seq_len matrix
-    dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
     tidyr::unnest_longer(col="idx") %>%
+    # step 5.1: truncate seq. to maximum length - 2
+    dplyr::slice_head(n=max_seq_len-2) %>%
+    # prepend sequence with CLS token then append SEP token at max_seq_len position
+    # step 5.2: pad to max_seq_len
+    dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
     # step 5.3: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len)
-   # TODO step 5.4 replace first and last with CLS_TOKEN_BOX
 
   # step 12 convert all to tensors
   # x_feature, we keep xmin, xmax, x_width, x_min_d, x_max_d, x_center_d
@@ -448,7 +453,6 @@ create_features_from_doc <- function(doc,
   SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
                           xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
 
-
   # step 3 extract text
   encoding <-  purrr::pmap(list(pdftools::pdf_data(doc), as.list(scale_w), as.list(scale_h)),
                            ~..1 %>% dplyr::mutate(
@@ -474,14 +478,14 @@ create_features_from_doc <- function(doc,
                              tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
-                                # step 5.2: pad to max_seq_len
-                                dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
-                                # step 5.3: truncate seq. to maximum length - 2
+                                # step 5.1: truncate seq. to maximum length - 2
                                 dplyr::slice_head(n=max_seq_len-2) %>%
-                                # prepend sequence with CLS token
-                                dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long)
-                                # append SEP token at max_seq_len position
+                                # prepend sequence with CLS token then append SEP token at max_seq_len position
+                                # step 5.2: pad to max_seq_len
+                                dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
+                                # step 5.3: truncate seq. to maximum length
+                                dplyr::slice_head(n=max_seq_len)
   )
 
   # step 12 convert all to tensors
@@ -578,7 +582,10 @@ create_features_from_docbank <- function(text_path,
   crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
-  CLS_TOKEN_BOX <- c(0, 0, min(w_h$width), min(w_h$height))   # Can be variable, but as per the paper, they have mentioned that it covers the whole image
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
+                          xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
 
   # step 3 extract text
   # TODO need to transform to lmap with the list(pdftools::pdf_data(doc), scale_w, scale_h) as arguments of an external function
@@ -607,12 +614,14 @@ create_features_from_docbank <- function(text_path,
                              tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
-                                # step 5.2: pad and slice to max_seq_len
-                                dplyr::bind_rows(.padding_encode(max_seq_len, pad_id)) %>%
                                 tidyr::unnest_longer(col="idx") %>%
+                                # step 5.1: truncate seq. to maximum length - 2
+                                dplyr::slice_head(n=max_seq_len-2) %>%
+                                # prepend sequence with CLS token then append SEP token at max_seq_len position
+                                # step 5.2: pad to max_seq_len
+                                dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
                                 # step 5.3: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len)
-                                # TODO step 5.4 replace first and last with CLS_TOKEN_BOX
   )
 
   # step 12 convert all to tensors
