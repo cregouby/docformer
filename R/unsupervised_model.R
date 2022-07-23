@@ -51,3 +51,25 @@ docformer_mlm <- torch::nn_module(
 docformer_pretrain <- function(config,train_dataloader,val_dataloader,device,epochs,path,classes,lr = 5e-5,weights=weights) {
 
 }
+
+# random_mlm_obfuscator <- torch::nn_module(
+#   "random_obfuscator",
+#   initialize = function(pretraining_ratio) {
+#
+#     if (pretraining_ratio <= 0 || pretraining_ratio >= 1) {
+#       pretraining_ratio <- 0.15
+#     }
+#
+#     self$pretraining_ratio <- pretraining_ratio
+#
+#   },
+#   forward = function(text, x_feature) {
+#     # workaround while torch_bernoulli is not available in CUDA
+#     ones <- torch::torch_ones_like(text, device="cpu")
+#     obfuscated_x <- torch::torch_bernoulli(self$pretraining_ratio * ones)
+#     masked_input <- torch::torch_mul(obfuscated_x, x_feature)$to("cpu") %>% as_array
+#
+#     list(masked_input, obfuscated_vars)
+#
+#   }
+# )

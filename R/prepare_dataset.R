@@ -258,8 +258,8 @@ apply_ocr <- function(image) {
                 x_center_d = rep(0,max_seq_len),
                 y_center_d = rep(0,max_seq_len),
                 text = NA_character_,
-                idx = pad_id #,
-                # prior=TRUE
+                idx = pad_id ,
+                mlm_mask=TRUE
                 )
 
 
@@ -367,13 +367,15 @@ create_features_from_image <- function(image,
     tidyr::replace_na(list("", rep(0, 13)))
 
   encoding_long <- encoding  %>%
+    # step 5: apply mask for the sake of pre-training
+    dplyr::mutate(mlm_mask=runif(n=nrow(encoding))>0.15) %>%
+    # step 6: unnest tokens
     tidyr::unnest_longer(col="idx") %>%
-    # step 5.1: truncate seq. to maximum length - 2
+    # step 7: truncate seq. to maximum length - 2
     dplyr::slice_head(n=max_seq_len-2) %>%
-    # prepend sequence with CLS token then append SEP token at max_seq_len position
-    # step 5.2: pad to max_seq_len
+    # step 8, 9, 10: prepend sequence with CLS token then append SEP token at last position, then pad to max_seq_len
     dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
-    # step 5.3: truncate seq. to maximum length
+    # step 11: truncate seq. to maximum length
     dplyr::slice_head(n=max_seq_len)
 
   # step 12 convert all to tensors
@@ -386,14 +388,18 @@ create_features_from_image <- function(image,
   # text (used to be input_ids)
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
+  # image
   image <- original_image %>% torchvision::transform_resize(size = "384x500") %>% torchvision::transform_to_tensor()
+  # masks
+  mask <- encoding_long %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_bool())
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1))
+    list(x_features=x_features$unsqueeze(1), y_features=y_features$unsqueeze(1), text=text$unsqueeze(1), image=image$unsqueeze(1), mask = mask$unsqueeze(1))
   } else {
-    list(x_features=x_features, y_features=y_features, text=text, image=image)
+    list(x_features=x_features, y_features=y_features, text=text, image=image, mask = mask)
   }
   # step 16: void keys to keep, resized_and_al&igned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
@@ -478,13 +484,15 @@ create_features_from_doc <- function(doc,
                              tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
+                                # step 5: apply mask for the sake of pre-training
+                                dplyr::mutate(mlm_mask=runif(n=nrow(.x))>0.15) %>%
+                                # step 6: unnest tokens
                                 tidyr::unnest_longer(col="idx") %>%
-                                # step 5.1: truncate seq. to maximum length - 2
+                                # step 7: truncate seq. to maximum length - 2
                                 dplyr::slice_head(n=max_seq_len-2) %>%
-                                # prepend sequence with CLS token then append SEP token at max_seq_len position
-                                # step 5.2: pad to max_seq_len
+                                # step 8, 9, 10: prepend sequence with CLS token then append SEP token at last position, then pad to max_seq_len
                                 dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
-                                # step 5.3: truncate seq. to maximum length
+                                # step 11: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len)
   )
 
@@ -502,13 +510,16 @@ create_features_from_doc <- function(doc,
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
                                            magick::image_scale("384x500") %>%
                                            torchvision::transform_to_tensor()))
+  # masks
+  mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
+    as.matrix %>% torch::torch_tensor(dtype = torch::torch_bool())))
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features=x_features, y_features=y_features, text=text, image=image)
+    list(x_features=x_features, y_features=y_features, text=text, image=image, mask = mask)
   } else {
-    list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
+    list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1), mask = mask$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
@@ -614,13 +625,15 @@ create_features_from_docbank <- function(text_path,
                              tidyr::replace_na(list("", rep(0, 13))))
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
+                                # step 5: apply mask for the sake of pre-training
+                                dplyr::mutate(mlm_mask=runif(n=nrow(.x))>0.15) %>%
+                                # step 6: unnest tokens
                                 tidyr::unnest_longer(col="idx") %>%
-                                # step 5.1: truncate seq. to maximum length - 2
+                                # step 7: truncate seq. to maximum length - 2
                                 dplyr::slice_head(n=max_seq_len-2) %>%
-                                # prepend sequence with CLS token then append SEP token at max_seq_len position
-                                # step 5.2: pad to max_seq_len
+                                # step 8, 9, 10: prepend sequence with CLS token then append SEP token at last position, then pad to max_seq_len
                                 dplyr::bind_rows(CLS_TOKEN_BOX_long, ., SEP_TOKEN_BOX_long, .padding_encode(max_seq_len, pad_id)) %>%
-                                # step 5.3: truncate seq. to maximum length
+                                # step 11: truncate seq. to maximum length
                                 dplyr::slice_head(n=max_seq_len)
   )
 
@@ -639,13 +652,16 @@ create_features_from_docbank <- function(text_path,
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
                                            magick::image_scale("384x500") %>%
                                            torchvision::transform_to_tensor()))
+  # masks
+  mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
+                                          as.matrix %>% torch::torch_tensor(dtype = torch::torch_bool())))
   # step 13: add tokens for debugging
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features=x_features, y_features=y_features, text=text, image=image)
+    list(x_features=x_features, y_features=y_features, text=text, image=image, mask = mask)
   } else {
-    list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1))
+    list(x_features=x_features$squeeze(1), y_features=y_features$squeeze(1), text=text$squeeze(1), image=image$squeeze(1), mask = mask$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
@@ -676,17 +692,12 @@ read_featureRDS <- function(file) {
   encoding_lst <- readRDS(file = file)
   encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_int()))
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
+  encoding_lst[[5]] <- torch::torch_tensor(encoding_lst[[5]],dtype = torch::torch_bool())
   encoding_lst
 }
 
-apply_mask_for_mm_mlm <- function(encoding_lst, mask_rate=0.15) {
-  # mask_for_mlm <- if (apply_mask_for_mlm) {
-  #   purrr::map(encoding, ~runif(n=nrow(.x))>mask_rate)
-  # } else {
-  #   purrr::map(encoding, ~rep(TRUE, nrow(.x)))
-  # }
-  #
-  # # step 5.1 apply mask for the sake of pre-training
-  # dplyr::bind_cols(prior=mask_for_mlm) %>%
-
+mask_for_mm_mlm <- function(encoding_lst, mask_rate=0.15) {
+  # sample values in the x_feature tensor
+  rnd_idx <- rbernoulli(n=attr(encoding_lst,"max_seq_len"), p=mask_rate)
+  ata <- encoding_lst$x_features$reshape(c(-1,6)) %>% as.matrix(ncol=6) * rnd_idx
 }
