@@ -46,6 +46,8 @@ test_that("create_features_from_image works with default values", {
   expect_equal(image_tt$x_features$shape, c(1, 512, 6))
   expect_equal(image_tt$y_features$shape, c(1, 512, 6))
   expect_equal(image_tt$text$shape, c(1, 512, 1))
+  expect_equal(image_tt$mask$shape, c(1, 512, 1))
+  expect_equal(as.character(image_tt$mask$dtype), "Bool")
   # first and last tensors are separators
   expect_equal(as.numeric(image_tt$text[1,1,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
   expect_equal(as.numeric(image_tt$text[1,512,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
@@ -78,6 +80,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(page1_tt$x_features$shape, c(1, 512, 6))
   expect_equal(page1_tt$y_features$shape, c(1, 512, 6))
   expect_equal(page1_tt$text$shape, c(1, 512, 1))
+  expect_equal(page1_tt$mask$shape, c(1, 512, 1))
+  expect_equal(as.character(page1_tt$mask$dtype), "Bool")
   # first and last tensors are separators
   expect_equal(as.numeric(page1_tt$text[1,1,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
   expect_equal(as.numeric(page1_tt$text[1,512,1]), sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
@@ -110,6 +114,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(doc_tt$image$shape[1:2], c(2, 3))
   expect_lte(doc_tt$image$shape[3], 500)
   expect_lte(doc_tt$image$shape[4], 384)
+  expect_equal(doc_tt$mask$shape, c(2, 512, 1))
+  expect_equal(as.character(doc_tt$mask$dtype), "Bool")
   # values
   expect_true(all(doc_tt$text %>% as.matrix >= 0))
 
@@ -127,13 +133,9 @@ test_that("create_features_from_doc correctly pads small content pages", {
   expect_type(doc_tt, "list")
   expect_s3_class(doc_tt,"docformer_tensor")
   expect_equal(attr(doc_tt, "max_seq_len"), 512L)
-  expect_length(doc_tt, 5)
   expect_equal(doc_tt$x_features$shape, c(2, 512, 6))
   expect_equal(doc_tt$y_features$shape, c(2, 512, 6))
   expect_equal(doc_tt$text$shape, c(2, 512, 1))
-  expect_equal(doc_tt$image$shape[1:2], c(2, 3))
-  expect_lte(doc_tt$image$shape[3], 500)
-  expect_lte(doc_tt$image$shape[4], 384)
   # values
   expect_true(all(doc_tt$text %>% as.array >= 0))
 
@@ -148,15 +150,9 @@ test_that("create_features_from_doc correctly pads small content pages", {
 test_that("create_features_from_doc correctly manages image with small target_geometry", {
   expect_error(tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128"),
                regexp = NA)
-  expect_type(tiny_tt, "list")
-  expect_s3_class(tiny_tt,"docformer_tensor")
-  expect_equal(attr(tiny_tt, "max_seq_len"), 512L)
-  expect_length(tiny_tt, 5)
   expect_equal(tiny_tt$image$shape[1:2], c(2, 3))
   expect_lte(tiny_tt$image$shape[3], 500)
   expect_lte(tiny_tt$image$shape[4], 384)
-  # values
-  expect_true(all(doc_tt$text %>% as.matrix >= 0))
 
   # hf tokenizer
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
