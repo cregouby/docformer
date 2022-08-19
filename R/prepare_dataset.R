@@ -600,9 +600,9 @@ create_features_from_docbank <- function(text_path,
   crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
-  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax =target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
-  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax = target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
 
   # step 3 extract text

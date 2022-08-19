@@ -1,35 +1,35 @@
 # inspired by ?? need rework
 docformer_mlm <- torch::nn_module(
   "docformer_mlm",
-  initialize = function(config,lr = 5e-5){
+  initialize = function(config, lr = 5e-5) {
     self$save_hyperparameters()
-    self$docformer = docformer_for_masked_lm(config)
+    self$docformer <- docformer_for_masked_lm(config)
   },
   forward = function(x) {
     self$docformer(x)
   },
-  training_step = function(batch,batch_idx) {
-    logits  <-  self$forward(batch)
-    criterion  <-  unsupervised_loss()
-    loss  <-  criterion(logits$transpose(2,1), batch["mlm_labels"]$long())
-    self$log("train_loss",loss,prog_bar = True)
+  training_step = function(batch, batch_idx) {
+    logits <-  self$forward(batch)
+    criterion <- unsupervised_loss()
+    loss  <-  criterion(logits$transpose(2, 1), batch["mlm_labels"]$long())
+    self$log("train_loss", loss, prog_bar = TRUE)
 
   },
-  validation_step = function(batch,batch_idx) {
+  validation_step = function(batch, batch_idx) {
     logits  <-  self$forward(batch)
     criterion_mm_mlm <- torch$nn$CrossEntropyLoss()
     # TODO
     criterion_ltr <- torch$nn$SmoothedL1Loss()
     # TODO
     criterion_tdi <- torch$nn$CrossEntropyLoss()
-    loss <- criterion_mm_mlm(logits$transpose(2,1), batch["mlm_labels"]$long())
-    val_acc <- 100*(torch$argmax(logits,dim = -1)==batch["mlm_labels"]$long())$float()$sum()/(logits$shape[1]*logits$shape[2])
+    loss <- criterion_mm_mlm(logits$transpose(2, 1), batch["mlm_labels"]$long())
+    val_acc <- 100 * (torch$argmax(logits, dim = -1) == batch["mlm_labels"]$long())$float()$sum() / (logits$shape[1] * logits$shape[2])
     val_acc <- torch$tensor(val_acc)
-    self$log("val_loss", loss, prog_bar=True)
-    self$log("val_acc", val_acc, prog_bar=True)
+    self$log("val_loss", loss, prog_bar = TRUE)
+    self$log("val_acc", val_acc, prog_bar = TRUE)
   },
   configure_optinizer = function() {
-    torch::optim_adam(self$parameters(), lr=self$hparams["lr"])
+    torch::optim_adam(self$parameters(), lr = self$hparams["lr"])
   }
 )
 
@@ -48,7 +48,7 @@ docformer_mlm <- torch::nn_module(
 #' @return
 #' @export
 #'
-docformer_pretrain <- function(config,train_dataloader,val_dataloader,device,epochs,path,classes,lr = 5e-5,weights=weights) {
+docformer_pretrain <- function(config, train_dataloader, val_dataloader, device, epochs, path, classes, lr = 5e-5, weights = weights) {
 
 }
 
