@@ -5,7 +5,7 @@ positional_encoding <- torch::nn_module(
     self$max_len <- max_len
     self$d_model <- d_model
     position <- torch::torch_arange(start = 1, end = max_len)$unsqueeze(2)
-    div_term <- torch::torch_exp(torch::torch_arange(1, d_model, 2) * (-log(1e5)/d_model))
+    div_term <- torch::torch_exp(torch::torch_arange(1, d_model, 2) * (-log(1e5) / d_model))
     pe <- torch::torch_zeros(1, max_len, d_model, device = self$config$device)
     pe[1,,1:N:2] <- torch::torch_sin(position * div_term)
     pe[1,,2:N:2] <- torch::torch_cos(position * div_term)
@@ -34,7 +34,7 @@ resnet_feature_extractor <- torch::nn_module(
     x  <- self$relu1(x)
     y  <- x$reshape(c(x$shape[1:2], -1)) # "b e wl hl -> b e (wl.hl)" batch, embedding, width_low, height_low, wl*hl=192
     y  <- self$linear1(y)
-    y  <- y$permute(c(1,3,2)) # "b e s -> b s e", batch, embedding, sequence, movedim is 0-indexed
+    y  <- y$permute(c(1, 3, 2)) # "b e s -> b s e", batch, embedding, sequence, movedim is 0-indexed
     return(y)
   }
 )
@@ -139,7 +139,7 @@ docformer_embeddings <- torch::nn_module(
         y_bottomright_pos_embeddings_v,
         h_pos_embeddings_v,
         y_topleft_dist_to_prev_embeddings_v,
-        y_bottomright_dist_to_prev_embeddings_v ,
+        y_bottomright_dist_to_prev_embeddings_v,
         y_centroid_dist_to_prev_embeddings_v),
     dim = -1
     )
@@ -158,7 +158,7 @@ docformer_embeddings <- torch::nn_module(
         x_bottomright_pos_embeddings_t,
         w_pos_embeddings_t,
         x_topleft_dist_to_prev_embeddings_t,
-        x_bottomright_dist_to_prev_embeddings_t ,
+        x_bottomright_dist_to_prev_embeddings_t,
         x_centroid_dist_to_prev_embeddings_t),
       dim = -1
     )
@@ -175,14 +175,14 @@ docformer_embeddings <- torch::nn_module(
         y_bottomright_pos_embeddings_t,
         h_pos_embeddings_t,
         y_topleft_dist_to_prev_embeddings_t,
-        y_bottomright_dist_to_prev_embeddings_t ,
+        y_bottomright_dist_to_prev_embeddings_t,
         y_centroid_dist_to_prev_embeddings_t),
       dim = -1
     )
 
     t_feat_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self$position_embedding_t()
 
-    return(list(v_feat_s,t_feat_s))
+    return(list(v_feat_s, t_feat_s))
 
   }
 )
@@ -236,7 +236,9 @@ relative_position <- torch::nn_module(
   initialize = function(num_units, max_relative_position, max_seq_length) {
     self$num_units <- num_units
     self$max_relative_position <- max_relative_position
-    self$embeddings_table <- torch::nn_parameter(torch::torch_zeros(c(max_relative_position * 2 + 1, num_units), device = self$config$device))
+    self$embeddings_table <- torch::nn_parameter(
+      torch::torch_zeros(c(max_relative_position * 2 + 1, num_units), device = self$config$device)
+      )
     torch::nn_init_xavier_uniform_(self$embeddings_table)
 
     self$max_length <- max_seq_length
@@ -248,7 +250,7 @@ relative_position <- torch::nn_module(
     self$final_mat  <-  final_mat$to(dtype = torch::torch_long())
   },
   forward = function(length_q, length_k) {
-    embeddings  <-  self$embeddings_table[self$final_mat[1:length_q, 1:length_k]]
+    self$embeddings_table[self$final_mat[1:length_q, 1:length_k]]
   }
 )
 
@@ -373,7 +375,7 @@ docformer_encoder <- torch::nn_module(
     self$config <- config
     hidden_size <- config$hidden_size
     self$layers <- torch::nn_module_list()
-    for (i in seq(config$num_hidden_layers)){
+    for (i in seq(config$num_hidden_layers)) {
       encoder_block <- torch::nn_module_list(list(
         pre_norm_attention(hidden_size,
                     multimodal_attention_layer(hidden_size,
@@ -386,7 +388,7 @@ docformer_encoder <- torch::nn_module(
         pre_norm(hidden_size,
                 feed_forward(hidden_size,
                             config$intermediate_size,
-                            dropout=config$hidden_dropout_prob))
+                            dropout = config$hidden_dropout_prob))
       ))
     self$layers$append(encoder_block)
     }
@@ -413,11 +415,11 @@ language_feature_extractor <- torch::nn_module(
   "language_feature_extractor",
   initialize = function(config) {
     layoutlm_net <- LayoutLMForTokenClassification(config)$from_pretrained(config$pretrained_model_name)
-    self$embedding_vector <- torch::nn_embedding(config$vocab_size, config$hidden_size, .weight=layoutlm_net$layoutlm$embeddings$word_embeddings$weight)
+    self$embedding_vector <- torch::nn_embedding(config$vocab_size, config$hidden_size, .weight = layoutlm_net$layoutlm$embeddings$word_embeddings$weight)
   },
   forward = function(x) {
     # shift text idx values to be 1-indexed
-    return(self$embedding_vector(x+1L)$squeeze(3))
+    return(self$embedding_vector(x + 1L)$squeeze(3))
   }
 )
 extract_features <- torch::nn_module(
@@ -463,12 +465,12 @@ docformer <- torch::nn_module(
 ltr_conv_relu_block <- torch::nn_module(
   "ltr_conv_relu_block",
   initialize = function() {
-    self$conv <- torch::nn_conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=FALSE)
-    torch::nn_init_normal_(self$conv, 0, sqrt(2/(3*3*64)))
-    self$relu <- torch::nn_relu(inplace=TRUE)
+    self$conv <- torch::nn_conv2d(in_channels = 64, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = FALSE)
+    torch::nn_init_normal_(self$conv$weight, 0, sqrt(2 / (3 * 3 * 64)))
+    self$relu <- torch::nn_relu(inplace = TRUE)
     
   },
-  forward = function(x){
+  forward = function(x) {
     self$relu(self$conv(x))
   }
 )
@@ -480,13 +482,13 @@ ltr_head <- torch::nn_module(
       residual_layer$append(ltr_conv_relu_block)
     }
     self$residual_layer <- torch::nn_sequential(residual_layer)
-    self$input <- torch::nn_conv2d(in_channels=1, out_channels=64, kernel_size=3, stride=1, padding=1, bias=FALSE)
-    torch::nn_init_normal_(self$input, 0, sqrt(2/(3*3*64)))
+    self$input <- torch::nn_conv2d(in_channels = 1, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = FALSE)
+    torch::nn_init_normal_(self$input$weight, 0, sqrt(2 / (3 * 3 * 64)))
 
-    self$output <- torch::nn_conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1, bias=FALSE)
-    torch::nn_init_normal_(self$output, 0, sqrt(2/(3*3)))
+    self$output <- torch::nn_conv2d(in_channels = 64, out_channels = 1, kernel_size = 3, stride = 1, padding = 1, bias = FALSE)
+    torch::nn_init_normal_(self$output$weight, 0, sqrt(2 / (3 * 3)))
     
-    self$relu <- torch::nn_relu(inplace=TRUE)
+    self$relu <- torch::nn_relu(inplace = TRUE)
     
   },
   forward = function(x) {
@@ -505,7 +507,7 @@ tdi_head <- torch::nn_module(
     # TODO
 
   },
-  forward = function(x){
+  forward = function(x) {
     # TODO
     x
   }
@@ -517,7 +519,7 @@ docformer_for_masked_lm <- torch::nn_module(
     self$config <- config
     self$docformer <- docformer(config)
     self$mm_mlm <- LayoutLMLMPredictionHead(config)
-    self$ltr <- ltr_head(config)
+    self$ltr <- ltr_head()
     self$tdi <- tdi_head(config)
     # TODO
     self$mlm_loss_fct <- torch::nn_cross_entropy_loss()
@@ -528,16 +530,16 @@ docformer_for_masked_lm <- torch::nn_module(
   forward = function(x, label) {
     # compute sequence embedding
     embedding <- self$docformer(x)
-    # compute Multi-Modal Masked Language Modeling (MM-MLM) 
+    # compute Multi-Modal Masked Language Modeling (MM-MLM)
     mm_mlm <- self$mm_mlm(embedding) # prediction_score
-    # TODO compute Learn To Reconstruct (LTR) 
+    # TODO compute Learn To Reconstruct (LTR)
     ltr <- self$ltr(embedding)
     # TODO compute Text Describes Image (TDI) loss
     tdi <- self$tdi(mm_mlm)
     # compute loss
     if (!is.null(labels)) {
       masked_lm_loss <- (
-        5 * self$mlm_loss_fct(mm_mlm,self$mm_mlm(self$docformer(label))) +
+        5 * self$mlm_loss_fct(mm_mlm, self$mm_mlm(self$docformer(label))) +
         self$ltr_loss_fct(mm_mlm$view(-1)) +
         5 * self$tdi_loss_fct(mm_mlm$view(-1))
         )
@@ -548,10 +550,10 @@ docformer_for_masked_lm <- torch::nn_module(
 
     # TODO extrqct other piggy values see layoutlm_network.R @826
     result <- list(
-      loss=masked_lm_loss,
-      logits=5* mm_mlm + ltr + 5 * tdi,
-      hidden_states=embedding$hidden_states,
-      attentions=embedding$attentions
+      loss = masked_lm_loss,
+      logits = 5* mm_mlm + ltr + 5 * tdi,
+      hidden_states = embedding$hidden_states,
+      attentions = embedding$attentions
     )
     class(result) <- "MaskedLMOutput"
     return(result)
