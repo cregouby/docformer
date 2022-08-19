@@ -339,9 +339,6 @@ create_features_from_image <- function(image,
   SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width=min(w_h$width), ymax = min(w_h$height), y_height=min(w_h$height),
                           xmin=0, ymin=0, x_min_d=0, x_max_d=0, x_center_d=0, y_min_d=0, y_max_d=0, y_center_d=0)
 
-  # step 2: resize image
-  resized_image <- magick::image_resize(original_image, geometry=target_geometry)
-
   # step 3 extract text throuhg OCR and normalize bbox to target geometry
   encoding <- apply_ocr(original_image) %>%
     dplyr::mutate(
@@ -389,7 +386,7 @@ create_features_from_image <- function(image,
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
   # image
-  image <- original_image %>% torchvision::transform_resize(size = "384x500") %>% torchvision::transform_to_tensor()
+  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()
   # masks
   mask <- encoding_long %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_bool())
@@ -508,7 +505,7 @@ create_features_from_doc <- function(doc,
                                           as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())))
   # step 2 + 8 resize and normlize the image for resnet
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages=.x) %>%
-                                           magick::image_scale("384x500") %>%
+                                           magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # masks
   mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
@@ -650,7 +647,7 @@ create_features_from_docbank <- function(text_path,
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity="NorthWestGravity") %>%
-                                           magick::image_scale("384x500") %>%
+                                           magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # masks
   mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask=TRUE)) %>%
@@ -696,8 +693,17 @@ read_featureRDS <- function(file) {
   encoding_lst
 }
 
-mask_for_mm_mlm <- function(encoding_lst, mask_rate=0.15) {
-  # sample values in the x_feature tensor
-  rnd_idx <- rbernoulli(n=attr(encoding_lst,"max_seq_len"), p=mask_rate)
-  ata <- encoding_lst$x_features$reshape(c(-1,6)) %>% as.matrix(ncol=6) * rnd_idx
+mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
+  # mask tokens idx
+  encoding_lst$text <- torch::torch_mul(encoding_lst$text, encoding_lst$mask[,,1])+
+    .mask_id(tokenizer) * !encoding_lst$mask[,,1]
+
+  encoding_lst
+}
+
+mask_for_ltr <- function(encoding_lst) {
+  # mask image
+  masked_image <-
+  encoding_lst$image <- torch::torch_mul(encoding_lst$text, encoding_lst$mask[,,1])
+  encoding_lst
 }

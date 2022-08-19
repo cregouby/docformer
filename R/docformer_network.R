@@ -26,7 +26,7 @@ resnet_feature_extractor <- torch::nn_module(
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048, config$hidden_size, kernel_size=1)
     self$relu1 <- torch::nn_relu()
-    self$linear1 <- torch::nn_linear(192, config$max_position_embeddings)
+    self$linear1 <- torch::nn_linear(config$hidden_size%/%config$intermediate_ff_size_factor, config$max_position_embeddings)
   },
   forward = function(x) {
     x  <- self$resnet50(x)
@@ -105,8 +105,8 @@ docformer_embeddings <- torch::nn_module(
     mbox_max <- self$config$max_2d_position_embeddings
 
     # Clamp and add a bias for handling negative values
-    x_feature[,,3] <- x_feature[,,3]$clamp_min(1L)
-    y_feature[,,3] <- y_feature[,,3]$clamp_min(1L)
+    x_feature[,,1:3] <- x_feature[,,1:3]$fmax(1L)
+    y_feature[,,1:3] <- y_feature[,,1:3]$fmax(1L)
     x_feature[,,4:N] <- x_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
     y_feature[,,4:N] <- y_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
 
