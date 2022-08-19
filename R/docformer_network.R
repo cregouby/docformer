@@ -1,10 +1,10 @@
 positional_encoding <- torch::nn_module(
   "positional_encoding",
-  initialize = function(d_model, dropout = 0.1, max_len = 5000) {
+  initialize = function(d_model, dropout = 0.1, max_len = 5000L) {
     self$dropout <- torch::nn_dropout(p = dropout)
     self$max_len <- max_len
     self$d_model <- d_model
-    position <- torch::torch_arange(start = 1, end = max_len)$unsqueeze(2)
+    position <- torch::torch_arange(start = 1, max_len)$unsqueeze(2)
     div_term <- torch::torch_exp(torch::torch_arange(1, d_model, 2) * (-log(1e5) / d_model))
     pe <- torch::torch_zeros(1, max_len, d_model, device = self$config$device)
     pe[1,,1:N:2] <- torch::torch_sin(position * div_term)
@@ -42,11 +42,11 @@ docformer_embeddings <- torch::nn_module(
   "docformer_embeddings",
   initialize = function(config) {
     self$config <- config
-    max_2d_p_emb <- config$max_2d_pos_embeddings
+    max_2d_p_emb <- config$max_2d_position_embeddings
     rel_max_2d_p_emb <- 2 * max_2d_p_emb + 1
 
     # self$word_embedding <- torch::nn_embedding(config$vocab_size, config$hidden_size, padding_idx = config$pad_token_id)
-    self$position_embedding_v <- positional_encoding(d_model = config$hidden_size, dropout = 0.1, max_len = config$max_pos_embeddings)
+    self$position_embedding_v <- positional_encoding(d_model = config$hidden_size, dropout = 0.1, max_len = config$max_position_embeddings)
 
     self$x_topleft_pos_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$x_bottomright_pos_embeddings_v <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
@@ -62,7 +62,7 @@ docformer_embeddings <- torch::nn_module(
     self$y_bottomright_dist_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
     self$y_centroid_dist_to_prev_embeddings_v <- torch::nn_embedding(rel_max_2d_p_emb, config$shape_size)
 
-    self$position_embedding_t <- positional_encoding(d_model = config$hidden_size, dropout = 0.1, max_len = config$max_pos_embeddings)
+    self$position_embedding_t <- positional_encoding(d_model = config$hidden_size, dropout = 0.1, max_len = config$max_position_embeddings)
 
     self$x_topleft_pos_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
     self$x_bottomright_pos_embeddings_t <- torch::nn_embedding(max_2d_p_emb, config$coordinate_size)
@@ -102,13 +102,13 @@ docformer_embeddings <- torch::nn_module(
     num_feat  <-  x_feature$shape[3] # 6
     hidden_size  <-  self$config$hidden_size
     sub_dim  <-  hidden_size %/% num_feat
-    mbox_max <- self$config$max_2d_pos_embeddings
+    mbox_max <- self$config$max_2d_position_embeddings
 
     # Clamp and add a bias for handling negative values
-    x_feature[,,1:3] <- x_feature[,,1:3]$fmax(1L)
-    y_feature[,,1:3] <- y_feature[,,1:3]$fmax(1L)
-    x_feature[,,4:N] <- x_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
-    y_feature[,,4:N] <- y_feature[,,4:N]$clamp( -mbox_max, mbox_max) + mbox_max
+    x_feature[,,1:3] <- x_feature[,,1:3]$clamp(1L, mbox_max)
+    y_feature[,,1:3] <- y_feature[,,1:3]$clamp(1L, mbox_max)
+    x_feature[,,4:N] <- x_feature[,,4:N]$clamp(-mbox_max, mbox_max) + mbox_max
+    y_feature[,,4:N] <- y_feature[,,4:N]$clamp(-mbox_max, mbox_max) + mbox_max
 
     x_topleft_pos_embeddings_v <- self$x_topleft_pos_embeddings_v(x_feature[,,1])
     x_bottomright_pos_embeddings_v <- self$x_bottomright_pos_embeddings_v(x_feature[,,2])
@@ -381,7 +381,7 @@ docformer_encoder <- torch::nn_module(
                     multimodal_attention_layer(hidden_size,
                                              config$num_attention_heads,
                                              config$max_relative_positions,
-                                             config$max_pos_embeddings,
+                                             config$max_position_embeddings,
                                              config$hidden_dropout_prob
                     )
         ),
@@ -532,8 +532,8 @@ docformer_for_masked_lm <- torch::nn_module(
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM)
     mm_mlm <- self$mm_mlm(embedding) # prediction_score
-    # TODO compute Learn To Reconstruct (LTR)
-    ltr <- self$ltr(embedding)
+    #  compute Learn To Reconstruct (LTR) on the CLS embedding
+    ltr <- self$ltr(embedding[,1,])
     # TODO compute Text Describes Image (TDI) loss
     tdi <- self$tdi(mm_mlm)
     # compute loss
@@ -551,7 +551,7 @@ docformer_for_masked_lm <- torch::nn_module(
     # TODO extrqct other piggy values see layoutlm_network.R @826
     result <- list(
       loss = masked_lm_loss,
-      logits = 5* mm_mlm + ltr + 5 * tdi,
+      logits = 5 * mm_mlm + ltr + 5 * tdi,
       hidden_states = embedding$hidden_states,
       attentions = embedding$attentions
     )

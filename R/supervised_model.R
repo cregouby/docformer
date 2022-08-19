@@ -45,7 +45,7 @@
 #'   epoch =5
 #'   )
 #'
-docformer_config <- function(pretrained_model_name=NA_character_,
+docformer_config <- function(pretrained_model_name = NA_character_,
                              coordinate_size = 128L,
                              shape_size = 128L,
                              hidden_dropout_prob = 0.1,
@@ -75,8 +75,8 @@ docformer_config <- function(pretrained_model_name=NA_character_,
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
       shape_size <- hidden_size %/% 6
-      coordinate_size <- (hidden_size - 4 * shape_size)/2
-      intermediate_ff_size_factor <-transformer_c$intermediate_ff_size_factor
+      coordinate_size <- (hidden_size - 4 * shape_size) / 2
+      intermediate_ff_size_factor <- transformer_c$intermediate_ff_size_factor
       max_2d_position_embeddings <- transformer_c$max_2d_position_embeddings
       max_position_embeddings <- transformer_c$max_position_embeddings
       num_attention_heads <- transformer_c$n_head
@@ -89,16 +89,16 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     pretrained_model_name <- "microsoft/layoutlm-base-uncased"
   }
   # consistency check in model design parameters
-  if (hidden_size %% num_attention_heads !=0) {
-    rlang::abort(message="Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
+  if (hidden_size %% num_attention_heads != 0) {
+    rlang::abort(message = "Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
   }
 
   if (2 * coordinate_size + 4 * shape_size != hidden_size) {
-    rlang::abort(message="Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
+    rlang::abort(message = "Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
   }
   # resolve device
   if (device == "auto") {
-    if (torch::cuda_is_available()){
+    if (torch::cuda_is_available()) {
       device <- "cuda"
     } else {
       device <- "cpu"

@@ -36,7 +36,7 @@ download_and_cache <- function(url, redownload = FALSE, timeout = 720) {
   fs::dir_create(cache_path)
   path <- file.path(cache_path, fs::path_file(url))
 
-  if (!file.exists(path) | redownload) {
+  if (!file.exists(path) || redownload) {
     withr::with_options(
       list(timeout = timeout),
       utils::download.file(url, path, mode = "wb")
@@ -114,8 +114,8 @@ NULL
   # sd <- .download_weights(model_name = model_name, redownload = redownload)
   # This will usually just fetch from the cache (torchvision way)
   if (!file.exists(model_name)) {
-    url <- transformers_config[transformers_config$model_name==model_name,]$url
-    temp_file <- download_and_cache(url = url, redownload = redownload, timeout = timeout )
+    url <- transformers_config[transformers_config$model_name == model_name, ]$url
+    temp_file <- download_and_cache(url = url, redownload = redownload, timeout = timeout)
   } else {
     temp_file <- model_name
   }
@@ -135,8 +135,6 @@ NULL
 
 
 .prune_head <- function(model) {
-  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children)-2)])
+  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children) - 2)])
   return(pruned_model)
 }
-
-
