@@ -10,7 +10,7 @@ test_that("normalize_box works with single var", {
 test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   phrase <- c("This", "Simple", "Coconut", "Curry", "Recipe", "Produces", "Flavorful", "Fish", "Fast")
   # sentencepiece
-  expect_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase, 20),NA)
+  expect_no_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase, 20))
   expect_true(purrr::vec_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct  max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
@@ -18,7 +18,7 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
   # expect_true(purrr::vec_depth(tokenized)==2)
   # tokenizer.bpe
-  expect_error(tokenized <- .tokenize(tokenizer=bpe_tok, phrase, 20),NA)
+  expect_no_error(tokenized <- .tokenize(tokenizer=bpe_tok, phrase, 20))
   expect_true(purrr::vec_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
@@ -36,8 +36,7 @@ test_that("tokenizer that cannot encode MASK raise an error", {
 
 test_that("create_features_from_image works with default values", {
   # sentencepiece
-  expect_error(image_tt <- create_features_from_image(image, sent_tok_mask),
-               regexp = NA)
+  expect_no_error(image_tt <- create_features_from_image(image, sent_tok_mask))
   # class, shape and type
   expect_type(image_tt, "list")
   expect_s3_class(image_tt,"docformer_tensor")
@@ -63,16 +62,14 @@ test_that("create_features_from_image works with default values", {
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
 
   # tokenizer.bpe
-  expect_error(create_features_from_image(image, bpe_tok_mask),
-               regexp = NA)
+  expect_no_error(create_features_from_image(image, bpe_tok_mask))
 })
 
 test_that("create_features_from_doc provides expected output from default values", {
   # Single-page document
   # sentencepiece
   qpdf::pdf_subset(doc, output = "2106.11539_1.pdf")
-  expect_error(page1_tt <- create_features_from_doc("2106.11539_1.pdf", sent_tok_mask),
-               regexp = NA)
+  expect_no_error(page1_tt <- create_features_from_doc("2106.11539_1.pdf", sent_tok_mask))
   expect_type(page1_tt, "list")
   expect_s3_class(page1_tt,"docformer_tensor")
   expect_equal(attr(page1_tt, "max_seq_len"), 512L)
@@ -97,13 +94,11 @@ test_that("create_features_from_doc provides expected output from default values
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
 
   # tokenizer.bpe
-  expect_error(create_features_from_doc("2106.11539_1.pdf", bpe_tok_mask),
-               regexp = NA)
+  expect_no_error(create_features_from_doc("2106.11539_1.pdf", bpe_tok_mask))
 
   # Multi-page document
   # sentencepiece
-  expect_error(doc_tt <- create_features_from_doc(doc, sent_tok_mask),
-               regexp = NA)
+  expect_no_error(doc_tt <- create_features_from_doc(doc, sent_tok_mask))
   expect_type(doc_tt, "list")
   expect_s3_class(doc_tt,"docformer_tensor")
   expect_equal(attr(doc_tt, "max_seq_len"), 512L)
@@ -123,13 +118,11 @@ test_that("create_features_from_doc provides expected output from default values
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
 
   # tokenizer.bpe
-  expect_error(create_features_from_doc(doc, bpe_tok_mask),
-               regexp = NA)
+  expect_no_error(create_features_from_doc(doc, bpe_tok_mask))
 })
 
 test_that("create_features_from_doc correctly pads small content pages", {
-  expect_error(doc_tt <- create_features_from_doc(doc2, sent_tok_mask),
-               regexp = NA)
+  expect_no_error(doc_tt <- create_features_from_doc(doc2, sent_tok_mask))
   expect_type(doc_tt, "list")
   expect_s3_class(doc_tt,"docformer_tensor")
   expect_equal(attr(doc_tt, "max_seq_len"), 512L)
@@ -143,23 +136,33 @@ test_that("create_features_from_doc correctly pads small content pages", {
   # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
 
   # tokenizer.bpe
-  expect_error(create_features_from_doc(doc2, bpe_tok_mask),
-               regexp = NA)
+  expect_no_error(create_features_from_doc(doc2, bpe_tok_mask))
 })
 
-test_that("create_features_from_doc correctly manages image with small target_geometry", {
-  expect_error(tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128"),
-               regexp = NA)
+test_that("create_features_from_* correctly manages image with small target_geometry", {
+  # _from_doc
+  expect_no_error(tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "168x128"))
   expect_equal(tiny_tt$image$shape[1:2], c(2, 3))
-  expect_lte(tiny_tt$image$shape[3], 500)
-  expect_lte(tiny_tt$image$shape[4], 384)
+  expect_lte(tiny_tt$image$shape[3], 168)
+  expect_lte(tiny_tt$image$shape[4], 128)
+  expect_lte(tiny_tt$x_features$max(), 168)
+  expect_lte(tiny_tt$y_features$max(), 128)
 
-  # hf tokenizer
-  # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+  # _from_image
+  expect_no_error(tiny_tt <- create_features_from_image(image, bpe_tok_mask, target_geometry = "168x128"))
+  expect_equal(tiny_tt$image$shape[1:2], c(1, 3))
+  expect_lte(tiny_tt$image$shape[3], 168)
+  expect_lte(tiny_tt$image$shape[4], 128)
+  expect_lte(tiny_tt$x_features$max(), 168)
+  expect_lte(tiny_tt$y_features$max(), 128)
 
-  # tokenizer.bpe
-  expect_error(create_features_from_doc(doc, bpe_tok_mask, target_geometry = "128x128"),
-               regexp = NA)
+  # _from_docbank
+  expect_no_error(tiny_tt <- create_features_from_docbank(docbank_txt, docbank_img,sent_tok_mask, target_geometry = "168x128"))
+  expect_equal(tiny_tt$image$shape[1:2], c(1, 3))
+  expect_lte(tiny_tt$image$shape[3], 168)
+  expect_lte(tiny_tt$image$shape[4], 128)
+  expect_lte(tiny_tt$x_features$max(), 168)
+  expect_lte(tiny_tt$y_features$max(), 128)
 })
 
 test_that("features properly save to disk and can be restored", {
@@ -167,21 +170,17 @@ test_that("features properly save to disk and can be restored", {
   image_tt <- create_features_from_image(image, sent_tok_mask)
   withr::local_file({
     doc_file <- paste0(stringr::str_extract(doc, "[^/]+$"),".Rds")
-    expect_error(save_featureRDS(doc_tt, file=doc_file),
-                 regexp = NA)
+    expect_no_error(save_featureRDS(doc_tt, file=doc_file))
     expect_true(file.exists(doc_file))
-    expect_error(doc2_tt <- read_featureRDS(file=doc_file),
-                 regexp = NA)
+    expect_no_error(doc2_tt <- read_featureRDS(file=doc_file))
     expect_equal(purrr::map(doc2_tt,~.x$shape), purrr::map(doc_tt,~.x$shape))
     expect_equal(purrr::map_chr(doc2_tt,~.x$dtype %>% as.character),
                  purrr::map_chr(doc_tt,~.x$dtype %>% as.character))
 
     image_file <- paste0(stringr::str_extract(image, "[^/]+$"),".Rds")
-    expect_error(save_featureRDS(image_tt, file=image_file),
-                 regexp = NA)
+    expect_no_error(save_featureRDS(image_tt, file=image_file))
     expect_true(file.exists(image_file))
-    expect_error(image2_tt <- read_featureRDS(file=image_file),
-                 regexp = NA)
+    expect_no_error(image2_tt <- read_featureRDS(file=image_file))
     expect_equal(purrr::map(image2_tt,~.x$shape), purrr::map(image_tt,~.x$shape))
     expect_equal(purrr::map_chr(image2_tt,~.x$dtype %>% as.character),
                  purrr::map_chr(image_tt,~.x$dtype %>% as.character))

@@ -17,6 +17,9 @@ image <- system.file(package="docformer",  "2106.11539_1.png")
 doc <- system.file(package="docformer", "2106.11539_1_2.pdf")
 doc2 <- system.file(package="docformer", "OSI_1_2.pdf")
 
+docbank_txt <- system.file(package="docformer", "DocBank_500K_txt")
+docbank_img <- system.file(package="docformer", "DocBank_500K_ori_img")
+
 doc_tt <- create_features_from_doc(doc, sent_tok_mask)
 tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x128")
 tiny_tt$text <- tiny_tt$text$clamp_max(4999)

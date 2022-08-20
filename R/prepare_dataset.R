@@ -333,9 +333,9 @@ create_features_from_image <- function(image,
     as.numeric()
   scale_w <- target_w_h[1] /  w_h$width
   scale_h <- target_w_h[2] / w_h$height
-  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax = target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
-  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax = target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
 
   # step 3 extract text throuhg OCR and normalize bbox to target geometry
@@ -452,9 +452,9 @@ create_features_from_doc <- function(doc,
   # TODO improvement : accept variable CLS_TOKEN_BOX  as it an be variable, but as per the paper,
   # they have mentioned that it covers the whole image. Like:
   # CLS_TOKEN_BOX <- bind_rows(xmin = 0, ymin = 0, x_width = w_h$width, y_height = w_h$height)
-  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  CLS_TOKEN_BOX_long <- c(idx = .cls_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax = target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
-  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = min(w_h$width), x_width = min(w_h$width), ymax = min(w_h$height), y_height = min(w_h$height),
+  SEP_TOKEN_BOX_long <- c(idx = .sep_id(tokenizer), xmax = target_w_h[1], x_width = target_w_h[1], ymax = target_w_h[2], y_height = target_w_h[2],
                           xmin = 0, ymin = 0, x_min_d = 0, x_max_d = 0, x_center_d = 0, y_min_d = 0, y_max_d = 0, y_center_d = 0)
 
   # step 3 extract text
@@ -662,7 +662,7 @@ create_features_from_docbank <- function(text_path,
                                           torch::torch_tensor(dtype = torch::torch_int())))
   # step 8 normlize the image
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
-                                           magick::image_crop(crop_geometry, gravity = "NorthWestGravity") %>%
+                                           magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
                                            magick::image_scale(target_geometry) %>%
                                            torchvision::transform_to_tensor()))
   # masks
