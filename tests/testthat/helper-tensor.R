@@ -14,11 +14,11 @@ skip_if_cuda_not_available <- function() {
 }
 
 expect_equal_to_tensor <- function(object, expected, ...) {
-  expect_equal(as_array(object), as_array(expected), ...)
+  expect_equal(as.array(object), as.array(expected), ...)
 }
 
 expect_not_equal_to_tensor <- function(object, expected) {
-  expect_false(isTRUE(all.equal(as_array(object), as_array(expected))))
+  expect_false(isTRUE(all.equal(as.array(object), as.array(expected))))
 }
 
 expect_no_error <- function(object, ...) {
@@ -26,17 +26,22 @@ expect_no_error <- function(object, ...) {
 }
 
 expect_tensor <- function(object) {
-  expect_true(is_torch_tensor(object))
-  expect_no_error(as_array(object$to(device = "cpu")))
+  expect_true(torch:::is_torch_tensor(object))
+  expect_no_error(as.array(object$to(device = "cpu")))
 }
 
 expect_equal_to_r <- function(object, expected, ...) {
-  expect_equal(as_array(object$cpu()), expected, ...)
+  expect_equal(as.array(object$cpu()), expected, ...)
 }
 
 expect_tensor_shape <- function(object, expected) {
   expect_tensor(object)
   expect_equal(object$shape, expected)
+}
+
+expect_tensor_dtype <- function(object, expected) {
+  expect_tensor(object)
+  expect_equal(as.character(object$dtype), expected)
 }
 
 expect_undefined_tensor <- function(object) {

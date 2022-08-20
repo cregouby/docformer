@@ -15,12 +15,12 @@
 #' # normalise bounding-box in percent
 #' normalize_box(c(227,34,274,41), width = 2100, height = 3970, size = 100)
 normalize_box <- function(bbox, width, height, size = 1000) {
-  norm_bbox <- round(c(bbox[[1]] / width, bbox[[2]] / height, bbox[[3]] / width, bbox[[4]] / height) * size)
+  norm_bbox <- trunc(c(bbox[[1]] / width, bbox[[2]] / height, bbox[[3]] / width, bbox[[4]] / height) * size)
   return(norm_bbox)
 }
 
 resize_align_bbox <- function(bbox, origin_w, origin_h, target_w, target_h) {
-  res_bbox <- round(c(bbox[[1]] * target_w / origin_w, bbox[[2]] * target_h / origin_h,
+  res_bbox <- trunc(c(bbox[[1]] * target_w / origin_w, bbox[[2]] * target_h / origin_h,
                       bbox[[3]] * target_w / origin_w, bbox[[4]] * target_h / origin_h))
   return(res_bbox)
 }
@@ -342,12 +342,12 @@ create_features_from_image <- function(image,
   encoding <- apply_ocr(original_image) %>%
     dplyr::mutate(
       # step 10 normalize the bbox
-      xmin = round(xmin * scale_w),
-      ymin = round(ymin * scale_h),
-      xmax = round(xmax * scale_w),
-      ymax = round(ymax * scale_h),
-      x_center = round((xmin + xmax )/2),
-      y_center = round((ymin + ymax )/2),
+      xmin = trunc(xmin * scale_w),
+      ymin = trunc(ymin * scale_h),
+      xmax = trunc(xmax * scale_w),
+      ymax = trunc(ymax * scale_h),
+      x_center = trunc((xmin + xmax )/2),
+      y_center = trunc((ymin + ymax )/2),
       # step 11 add relative spatial features
       x_width = xmax - xmin,
       y_height = ymax - ymin,
@@ -461,12 +461,12 @@ create_features_from_doc <- function(doc,
   encoding <-  purrr::pmap(list(pdftools::pdf_data(doc), as.list(scale_w), as.list(scale_h)),
                            ~..1 %>% dplyr::mutate(
                              # step 10 normalize the bbox
-                             xmin = round( x * ..2),
-                             ymin = round( y * ..3),
-                             xmax = round((x + width) * ..2),
-                             ymax = round((y + height) * ..3),
-                             x_center = round((xmin + xmax )/2),
-                             y_center = round((ymin + ymax )/2),
+                             xmin = trunc( x * ..2),
+                             ymin = trunc( y * ..3),
+                             xmax = trunc((x + width) * ..2),
+                             ymax = trunc((y + height) * ..3),
+                             x_center = trunc((xmin + xmax )/2),
+                             y_center = trunc((ymin + ymax )/2),
                              # step 11 add relative spatial features
                              x_width = xmax - xmin,
                              y_height = ymax - ymin,
@@ -595,8 +595,8 @@ create_features_from_docbank <- function(text_path,
   target_w_h <- stringr::str_split(target_geometry, "x")[[1]] %>%
     as.numeric()
 
+  # TODO: crop and scale each page based on max(xmax)-min(xmin) x max(ymax)-min(ymin)
   # image will be crop to reach alignement
-
   crop_geometry <- paste0(min(w_h$width),"x",min(w_h$height))
   scale_w <- target_w_h[1] / w_h$width
   scale_h <- target_w_h[2] / w_h$height
@@ -611,12 +611,12 @@ create_features_from_docbank <- function(text_path,
                            ~readr::read_tsv(..1, col_types = "cdddd--cc", col_names = txt_col_names) %>%
                              dplyr::mutate(
                                # step 10 normalize the bbox
-                               xmin = round(xmin * ..2),
-                               ymin = round(ymin * ..3),
-                               xmax = round(xmax * ..2),
-                               ymax = round(ymax * ..3),
-                               x_center = round((xmin + xmax )/2),
-                               y_center = round((ymin + ymax )/2),
+                               xmin = trunc(xmin * ..2),
+                               ymin = trunc(ymin * ..3),
+                               xmax = min(trunc(xmax * ..2),target_w_h[1]),
+                               ymax = min(trunc(ymax * ..3),target_w_h[2]),
+                               x_center = trunc((xmin + xmax )/2),
+                               y_center = trunc((ymin + ymax )/2),
                                # step 11 add relative spatial features
                                x_width = xmax - xmin,
                                y_height = ymax - ymin,
