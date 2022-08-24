@@ -48,9 +48,9 @@ test_that("create_features_from_image works with default values", {
   expect_tensor_shape(image_tt$mask, c(1, 512, 1))
   expect_tensor_dtype(image_tt$mask, "Bool")
   # first and last tensors are separators
-  expect_equal_to_r(image_tt$text[1,1,1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
-  expect_equal_to_r(image_tt$text[1,512,1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
-  expect_equal_to_tensor(image_tt$x_features[1,1,1], image_tt$x_features[1,512,1])
+  expect_equal_to_r(image_tt$text[1, 1, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "<s>",]$id)
+  expect_equal_to_r(image_tt$text[1, 512, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "</s>",]$id)
+  expect_equal_to_tensor(image_tt$x_features[1, 1, 1], image_tt$x_features[1, 512, 1])
 
   expect_equal(image_tt$image$shape[1:2], c(1, 3))
   expect_lte(image_tt$image$shape[3], 500)
@@ -80,8 +80,8 @@ test_that("create_features_from_doc provides expected output from default values
   expect_equal(page1_tt$mask$shape, c(1, 512, 1))
   expect_equal(as.character(page1_tt$mask$dtype), "Bool")
   # first and last tensors are separators
-  expect_equal_to_r(page1_tt$text[1,1,1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="<s>",]$id)
-  expect_equal_to_r(page1_tt$text[1,512,1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword=="</s>",]$id)
+  expect_equal_to_r(page1_tt$text[1, 1, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "<s>",]$id)
+  expect_equal_to_r(page1_tt$text[1, 512, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "</s>",]$id)
   expect_equal_to_r(page1_tt$x_features[1,1,1], as.numeric(page1_tt$x_features[1,512,1]))
   # shape
   expect_equal(page1_tt$image$shape[1:2], c(1, 3))
@@ -128,6 +128,8 @@ test_that("create_features_from_doc correctly pads small content pages", {
   expect_tensor_shape(doc_tt$x_features, c(2, 512, 6))
   expect_tensor_shape(doc_tt$y_features, c(2, 512, 6))
   expect_tensor_shape(doc_tt$text, c(2, 512, 1))
+  expect_tensor_shape(doc_tt$mask, c(2, 512, 1))
+  expect_tensor_dtype(doc_tt$mask, "Bool")
   # values
   expect_gte(doc_tt$text$min() %>% as.numeric, 0)
 
@@ -136,6 +138,13 @@ test_that("create_features_from_doc correctly pads small content pages", {
 
   # tokenizer.bpe
   expect_no_error(create_features_from_doc(doc2, bpe_tok_mask))
+})
+
+test_that("there is no masking on padded text", {
+  doc_tt <- create_features_from_doc(doc2, sent_tok_mask)
+  padded_text <- torch::torch_cat(list(doc_tt$text[1,,],doc_tt$mask[1,,]),dim = 2)
+  pad_mask <- torch::torch_unique_consecutive(padded_text, dim = 1, return_counts = TRUE)
+  expect_equal_to_r(torch::torch_sum(pad_mask[[1]][, 1] == 1, dim = 1), 1)
 })
 
 test_that("create_features_from_* correctly manages image with small target_geometry", {
@@ -166,21 +175,25 @@ test_that("features properly save to disk and can be restored", {
   image_tt <- create_features_from_image(image, sent_tok_mask)
   withr::local_file({
     doc_file <- paste0(stringr::str_extract(doc, "[^/]+$"),".Rds")
-    expect_no_error(save_featureRDS(doc_tt, file=doc_file))
+    expect_no_error(save_featureRDS(doc_tt, file = doc_file))
     expect_true(file.exists(doc_file))
-    expect_no_error(doc2_tt <- read_featureRDS(file=doc_file))
+    expect_no_error(doc2_tt <- read_featureRDS(file = doc_file))
     expect_equal(purrr::map(doc2_tt,~.x$shape), purrr::map(doc_tt,~.x$shape))
     expect_equal(purrr::map_chr(doc2_tt,~.x$dtype %>% as.character),
                  purrr::map_chr(doc_tt,~.x$dtype %>% as.character))
 
     image_file <- paste0(stringr::str_extract(image, "[^/]+$"),".Rds")
-    expect_no_error(save_featureRDS(image_tt, file=image_file))
+    expect_no_error(save_featureRDS(image_tt, file = image_file))
     expect_true(file.exists(image_file))
-    expect_no_error(image2_tt <- read_featureRDS(file=image_file))
+    expect_no_error(image2_tt <- read_featureRDS(file = image_file))
     expect_equal(purrr::map(image2_tt,~.x$shape), purrr::map(image_tt,~.x$shape))
     expect_equal(purrr::map_chr(image2_tt,~.x$dtype %>% as.character),
                  purrr::map_chr(image_tt,~.x$dtype %>% as.character))
   })
 })
 
-
+test_that("mask_for_mm_mlm works as expected", {
+  expect_no_error(masked_doc <- mask_for_mm_mlm(doc_tt, sent_tok_mask))
+  expect_tensor_shape(masked_doc$text, c(2, 512, 1))
+  # expect_equal_to_r()
+})
