@@ -714,13 +714,16 @@ read_featureRDS <- function(file) {
 
 mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
   # mask tokens idx
-  encoding_lst$text <- torch::torch_mul(encoding_lst$text, encoding_lst$mask[, , 1]) + .mask_id(tokenizer) * !encoding_lst$mask[, , 1]
+  encoding_lst$text <- torch::torch_mul(encoding_lst$text, encoding_lst$mask[, , 1]) + torch::torch_mul(.mask_id(tokenizer), !encoding_lst$mask[, , 1])
   encoding_lst
 }
 
 mask_for_ltr <- function(encoding_lst) {
-  # mask image
+  # mask bbox
+  bbox <- torch::torch_cat(list(encoding_lst$x_feature[, , 1:2],encoding_lst$y_feature[, , 1:2]), dim = 3)
+  mask_bbox <- bbox$masked_select(encoding_lst$mask)$view(c(-1, 4))$unique_consecutive(dim=1)
+
   masked_image <-
-  encoding_lst$image <- torch::torch_mul(encoding_lst$text, encoding_lst$mask[, , 1])
+  encoding_lst$image <-
   encoding_lst
 }

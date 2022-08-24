@@ -471,7 +471,7 @@ ltr_conv_relu_block <- torch::nn_module(
 
   },
   forward = function(x) {
-    self$relu(self$conv(x))
+    x %>% self$conv() %>% self$relu()
   }
 )
 ltr_head <- torch::nn_module(
@@ -493,10 +493,10 @@ ltr_head <- torch::nn_module(
   },
   forward = function(x) {
     out <- x %>%
-      self$input %>%
-      self$relu %>%
-      self$residual_layer %>%
-      self$output
+      self$input() %>%
+      self$relu() %>%
+      self$residual_layer() %>%
+      self$output()
     return(torch::torch_add(out,x))
   }
 )
@@ -531,11 +531,11 @@ docformer_for_masked_lm <- torch::nn_module(
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM)
-    mm_mlm <- self$mm_mlm(embedding)
+    mm_mlm <- self$mm_mlm(self$docformer(mask_for_mm_mlm(x)))
     #  compute Learn To Reconstruct (LTR) on the CLS embedding
-    ltr <- self$ltr(embedding[,1,])
+    ltr <- self$ltr(self$docformer(mask_for_ltr(x)))
     # TODO compute Text Describes Image (TDI) loss
-    tdi <- self$tdi(embedding)
+    tdi <- self$tdi(self$docformer(mask_for_tdi(x)))
     # compute loss
     masked_lm_loss <- (
       5 * self$mlm_loss_fct(mm_mlm, x$text) +
