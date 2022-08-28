@@ -364,7 +364,7 @@ create_features_from_image <- function(image,
 
   encoding_long <- encoding  %>%
     # step 5: apply mask for the sake of pre-training
-    dplyr::mutate(mlm_mask = runif(n = nrow(encoding) ) > 0.15) %>%
+    dplyr::mutate(mlm_mask = stats::runif(n = nrow(encoding) ) > 0.15) %>%
     # step 6: unnest tokens
     tidyr::unnest_longer(col = "idx") %>%
     # step 7: truncate seq. to maximum length - 2
@@ -483,7 +483,7 @@ create_features_from_doc <- function(doc,
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
                                 # step 5: apply mask for the sake of pre-training
-                                dplyr::mutate(mlm_mask = runif(n = nrow(.x)) > 0.15) %>%
+                                dplyr::mutate(mlm_mask = stats::runif(n = nrow(.x)) > 0.15) %>%
                                 # step 6: unnest tokens
                                 tidyr::unnest_longer(col = "idx") %>%
                                 # step 7: truncate seq. to maximum length - 2
@@ -633,7 +633,7 @@ create_features_from_docbank <- function(text_path,
 
   encoding_long <- purrr::map(encoding, ~.x  %>%
                                 # step 5: apply mask for the sake of pre-training
-                                dplyr::mutate(mlm_mask = runif(n = nrow(.x))>0.15) %>%
+                                dplyr::mutate(mlm_mask = stats::runif(n = nrow(.x))>0.15) %>%
                                 # step 6: unnest tokens
                                 tidyr::unnest_longer(col = "idx") %>%
                                 # step 7: truncate seq. to maximum length - 2
