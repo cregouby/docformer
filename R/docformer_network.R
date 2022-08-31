@@ -26,6 +26,7 @@ resnet_feature_extractor <- torch::nn_module(
     self$conv1 <- torch::nn_conv2d(2048, config$hidden_size, kernel_size = 1)
     self$relu1 <- torch::nn_relu()
     self$linear1 <- torch::nn_linear(config$hidden_size %/% config$intermediate_ff_size_factor, config$max_position_embeddings)
+    # TODO adapt the output according to https://github.com/microsoft/unilm/blob/9865272c76829757b13292f1b51d2fcd7b5fa401/layoutlmft/layoutlmft/models/layoutlmv2/modeling_layoutlmv2.py#L601
   },
   forward = function(x) {
     x  <- self$resnet50(x)
@@ -34,6 +35,7 @@ resnet_feature_extractor <- torch::nn_module(
     y  <- x$reshape(c(x$shape[1:2], -1)) # "b e wl hl -> b e (wl.hl)" batch, embedding, width_low, height_low, wl*hl=192
     y  <- self$linear1(y)
     y  <- y$permute(c(1, 3, 2)) # "b e s -> b s e", batch, embedding, sequence, movedim is 0-indexed
+    # TODO adapt the output according to https://github.com/microsoft/unilm/blob/9865272c76829757b13292f1b51d2fcd7b5fa401/layoutlmft/layoutlmft/models/layoutlmv2/modeling_layoutlmv2.py#L601
     return(y)
   }
 )

@@ -37,8 +37,8 @@ test_that("docformer initialization works with non-standard pretrained model by 
 
 config_man  <-
   docformer_config(
-    coordinate_size = 18L,
-    shape_size = 3L,
+    coordinate_size = 8L,
+    shape_size = 8L,
     hidden_size = 48L,
     max_2d_position_embeddings = 128L,
     max_position_embeddings = 64L,
