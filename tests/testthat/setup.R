@@ -21,7 +21,8 @@ docbank_txt <- system.file(package="docformer", "DocBank_500K_txt")
 docbank_img <- system.file(package="docformer", "DocBank_500K_ori_img")
 
 doc_tt <- create_features_from_doc(doc, sent_tok_mask)
-tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "128x168")
+# TODO Bug : no target geometry value fits the constraint of resnet_50 onto shape [,,x,y] where x * y = 32 (config$hidden_size %/% config$intermediate_ff_size_factor)
+tiny_tt <- create_features_from_doc(doc, sent_tok_mask, target_geometry = "168x168")
 tiny_tt$text <- tiny_tt$text$clamp_max(4999)
 
 # Run after all tests

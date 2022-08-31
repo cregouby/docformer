@@ -21,7 +21,7 @@ resnet_feature_extractor <- torch::nn_module(
   initialize = function(config) {
     # use ResNet model for visual features embedding (remove classificaion head)
     # extract resnet50 `layer 4`
-    self$resnet50 <- torch::nn_prune_head(torchvision::model_resnet50(pretrain = TRUE), 1)
+    self$resnet50 <- torch::nn_prune_head(torchvision::model_resnet50(pretrain = TRUE), 2)
     # Applying convolution and linear layer
     self$conv1 <- torch::nn_conv2d(2048, config$hidden_size, kernel_size = 1)
     self$relu1 <- torch::nn_relu()
@@ -430,14 +430,9 @@ extract_features <- torch::nn_module(
 
   },
   forward = function(encoding) {
-    image <- encoding$image
-    language <- encoding$text
-    x_feature <- encoding$x_features
-    y_feature <- encoding$y_features
-
-    v_feat <- self$visual_feature(image)
-    t_feat <- self$language_feature(language)
-    v_feat_s_t_feat_s <- self$spatial_feature(x_feature, y_feature)
+    v_feat <- self$visual_feature(encoding$image)
+    t_feat <- self$language_feature(encoding$text)
+    v_feat_s_t_feat_s <- self$spatial_feature(encoding$x_features, encoding$y_features)
     return(list(v_feat, t_feat, v_feat_s_t_feat_s[[1]], v_feat_s_t_feat_s[[2]]))
 
   }
