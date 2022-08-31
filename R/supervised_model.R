@@ -106,7 +106,7 @@ docformer_config <- function(pretrained_model_name = NA_character_,
   }
   # resolve dtype
   if (torch::is_torch_dtype(dtype) && dtype != torch::torch_float16()) {
-    dtype <- torch_float()
+    dtype <- torch::torch_float32()
   }
 
   list(

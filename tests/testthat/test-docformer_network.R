@@ -53,26 +53,43 @@ config_man  <-
 #
 # })
 test_that("docformer forward works with the expected tensor input", {
-  config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
+  # config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
+  config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
   docformer_net <- docformer:::docformer(config)
-  expect_no_error(output_tt <- docformer_net(tiny_tt))
+  expect_no_error(output_tt <- docformer_net(doc_tt))
   expect_tensor_shape(output_tt, c(2, config$max_position_embeddings, config$hidden_size))
 })
 
-test_that("docformer_for_masked_lm unitary functions work", {
-  config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
-  docformer_net <- docformer:::docformer_for_masked_lm(config)
-  embedding <- docformer_net$docformer(tiny_tt)
-  # expect_tensor_shape(embedding, c(2, config$max_position_embeddings, config$hidden_size))
-  # mm_mlm
-  expect_no_error(mm_mlm <- docformer_net$mm_mlm(embedding))
-  expect_tensor_shape(mm_mlm, c(2, config$max_position_embeddings, config$hidden_size))
-  # ltr
-  expect_no_error(ltr <- docformer_net$ltr(embedding[,1,]))
-  expect_tensor_shape(ltr, c(2, 168, 128))
-  # tdi
-  expect_no_error(tdi <- docformer_net$tdi(embedding))
-  expect_tensor_shape(tdi, c(2, 168, 128))
 
-
+test_that("docformer_config(dtype = torch::torch_float16()) reduce memory footprint", {
+  config16  <-  docformer_config( dtype = torch::torch_float16() )
+  config32  <-  docformer_config( dtype = torch::torch_float32() )
+  config64  <-  docformer_config( dtype = torch::torch_float64() )
+  expect_no_error(docformer_16 <- docformer:::docformer(config16))
+  expect_no_error(docformer_32 <- docformer:::docformer(config32))
+  expect_no_error(output_16 <- docformer_16(doc_tt))
+  expect_no_error(output_32 <- docformer_32(doc_tt))
+  # expect_no_error(docformer_64 <- docformer:::docformer(config64))
+  expect_equal(lobstr::obj_size(output_32), lobstr::obj_size(output_16) * 2)
+  # expect_gt(lobstr::obj_size(docformer_64), lobstr::obj_size(docformer_32))
 })
+
+# model is too big, goes to swap
+# test_that("docformer_for_masked_lm unitary functions work", {
+#   # config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
+#   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
+#   docformer_net <- docformer:::docformer_for_masked_lm(config)
+#   embedding <- docformer_net$docformer(doc_tt)
+#   # expect_tensor_shape(embedding, c(2, config$max_position_embeddings, config$hidden_size))
+#   # mm_mlm
+#   expect_no_error(mm_mlm <- docformer_net$mm_mlm(embedding))
+#   expect_tensor_shape(mm_mlm, c(2, config$max_position_embeddings, config$hidden_size))
+#   # ltr
+#   expect_no_error(ltr <- docformer_net$ltr(embedding[,1,]))
+#   expect_tensor_shape(ltr, c(2, config$max_position_embeddings, config$hidden_size))
+#   # tdi
+#   expect_no_error(tdi <- docformer_net$tdi(embedding))
+#   expect_tensor_shape(tdi, c(2, config$max_position_embeddings, config$hidden_size))
+#
+#
+# })
