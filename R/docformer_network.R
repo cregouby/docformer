@@ -264,8 +264,8 @@ multimodal_attention_layer <- torch::nn_module(
     self$n_heads <- n_heads
     self$head_dim <- embed_dim %/% n_heads
 
-    self$relative_positions_text <- relative_position(self$head_dim, max_relative_position, max_seq_length)
-    self$relative_positions_img <- relative_position(self$head_dim, max_relative_position, max_seq_length)
+    self$relative_positions_text <- relative_position(self$head_dim, max_relative_position, max_seq_length)$to(dtype)
+    self$relative_positions_img <- relative_position(self$head_dim, max_relative_position, max_seq_length)$to(dtype)
 
     # text qkv embeddings
     self$fc_k_text <- torch::nn_linear(embed_dim, embed_dim)
@@ -290,8 +290,8 @@ multimodal_attention_layer <- torch::nn_module(
       torch::nn_linear(embed_dim, embed_dim),
       torch::nn_dropout(dropout)
     )
-    self$scale <- torch::torch_sqrt(torch::torch_tensor(embed_dim, device = self$config$device))
     self$dtype <- dtype
+    self$scale <- torch::torch_sqrt(embed_dim)$to(dtype = dtype)
 
   },
   forward = function(text_feat, img_feat, text_spatial_feat, img_spatial_feat) {
@@ -360,8 +360,8 @@ multimodal_attention_layer <- torch::nn_module(
     # Line 59 of pseudo-code
     img_attn_scores <- dots_img + rel_pos_key_img + rel_pos_query_img + dots_img_spatial
 
-    text_attn_probs <- self$softmax_dropout(text_attn_scores)
-    img_attn_probs <- self$softmax_dropout(img_attn_scores)
+    text_attn_probs <- self$softmax_dropout(text_attn_scores$to(torch::torch_float()))$to(self$dtype)
+    img_attn_probs <- self$softmax_dropout(img_attn_scores$to(torch::torch_float()))$to(self$dtype)
 
     text_context <- torch::torch_einsum("hblt,hbtv->hblv", list(text_attn_probs, value_text_nh))
     img_context <- torch::torch_einsum("hblt,hbtv->hblv", list(img_attn_probs, value_img_nh))
