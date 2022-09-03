@@ -13,6 +13,24 @@ skip_if_cuda_not_available <- function() {
   }
 }
 
+torch_mem_used <- function() {
+  all_mem <- lobstr:::new_bytes(
+    system("pmap $(pidof rsession) | tail -n1", intern = TRUE) %>%
+    stringr::str_extract("\\d+") %>%
+    as.numeric * 1000
+    )
+  r_mem <- lobstr::mem_used() %>% as.numeric
+  all_mem - r_mem
+}
+
+torch_obj_size <- function(obj) {
+  stopifnot("object is not a torch tensor" = inherits(obj, "torch_tensor"))
+  mem_before <- torch_mem_used()
+  add_obj_mem <- torch::torch_reshape(obj, obj$shape)
+  mem_after <- torch_mem_used()
+  mem_after - mem_before
+}
+
 expect_equal_to_tensor <- function(object, expected, ...) {
   expect_equal(as.array(object), as.array(expected), ...)
 }

@@ -369,7 +369,7 @@ multimodal_attention_layer <- torch::nn_module(
     context <- text_context + img_context
     dim <- context$shape
     embeddings <- context$permute(c(2, 3, 1, 4))$reshape(c(dim[2:3], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
-    return(self$to_out(embeddings))
+    return(self$to_out(embeddings$to(torch::torch_float()))$to(self$dtype))
   }
 )
 docformer_encoder <- torch::nn_module(
@@ -407,10 +407,9 @@ docformer_encoder <- torch::nn_module(
       attn <- self$layers[[id]][[1]]
       ff <- self$layers[[id]][[2]]
       x <- attn(text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
-      x <- ff(x) + x
-      text_feat <- x
+      text_feat <- ff(x$to(torch::torch_float()))$to(self$dtype) + x
       }
-    return(x)
+    return(text_feat)
 
   }
 )
@@ -455,7 +454,7 @@ docformer <- torch::nn_module(
   forward = function(x) {
     x_ex_fe <- self$extract_feature(x)
     x_enc <- self$encoder(x_ex_fe[[1]], x_ex_fe[[2]], x_ex_fe[[3]], x_ex_fe[[4]])
-    output <- self$dropout(x_enc)
+    output <- self$dropout(x_enc$to(torch::torch_float()))$to(self$dtype)
 
   }
 )
