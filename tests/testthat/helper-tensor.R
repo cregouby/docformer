@@ -57,9 +57,9 @@ expect_tensor_shape <- function(object, expected) {
   expect_equal(object$shape, expected)
 }
 
-expect_tensor_dtype <- function(object, expected) {
+expect_tensor_dtype <- function(object, expected_dtype) {
   expect_tensor(object)
-  expect_equal(as.character(object$dtype), expected)
+  expect_true(object$dtype == expected_dtype)
 }
 
 expect_undefined_tensor <- function(object) {
