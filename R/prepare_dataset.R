@@ -58,11 +58,11 @@ apply_ocr <- function(image) {
 #' @param max_seq_len  unused
 #' @export
 #' @return list of token ids for each token
-.tokenize <- function(tokenizer, x) {
+.tokenize <- function(tokenizer, x, max_seq_len) {
   UseMethod(".tokenize")
 }
 #' @export
-.tokenize.default <- function(tokenizer, x) {
+.tokenize.default <- function(tokenizer, x, max_seq_len) {
   rlang::abort(paste0(tokenizer, " is not recognized as a supported tokenizer"))
 }
 #' @export
@@ -385,7 +385,8 @@ create_features_from_image <- function(image,
   text <- encoding_long %>% dplyr::select(idx) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_int())
   # image
-  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>% torchvision::transform_to_tensor()
+  image <- original_image %>% torchvision::transform_resize(size = target_geometry) %>%
+    torchvision::transform_to_tensor() * 255
   # masks
   mask <- encoding_long %>% dplyr::select(mlm_mask) %>% tidyr::replace_na(list(mlm_mask = TRUE)) %>%
     as.matrix %>% torch::torch_tensor(dtype = torch::torch_bool())
@@ -395,7 +396,7 @@ create_features_from_image <- function(image,
   encoding_lst <- if (add_batch_dim) {
     list(x_features = x_features$unsqueeze(1), y_features = y_features$unsqueeze(1), text = text$unsqueeze(1), image = image$unsqueeze(1), mask = mask$unsqueeze(1))
   } else {
-    list(x_features = x_features, y_features = y_features, text = text, image = image, mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
   }
   # step 16: void keys to keep, resized_and_al&igned_bounding_boxes have been added for the purpose
   # to test if the bounding boxes are drawn correctly or not, it maybe removed
@@ -513,7 +514,7 @@ create_features_from_doc <- function(doc,
   # step 2 + 8 resize and normlize the image for resnet
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~magick::image_read_pdf(doc, pages = .x) %>%
                                            magick::image_scale(target_geometry) %>%
-                                           torchvision::transform_to_tensor()))
+                                           torchvision::transform_to_tensor() * 255 ))
   # masks
   mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>%
                                           dplyr::select(mlm_mask) %>%
@@ -524,7 +525,7 @@ create_features_from_doc <- function(doc,
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features = x_features, y_features = y_features, text = text, image = image, mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
   } else {
     list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$squeeze(1), mask = mask$squeeze(1))
   }
@@ -664,7 +665,7 @@ create_features_from_docbank <- function(text_path,
   image <- torch::torch_stack(purrr::map(seq(nrow(w_h)), ~original_image[[.x]] %>%
                                            magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
                                            magick::image_scale(target_geometry) %>%
-                                           torchvision::transform_to_tensor()))
+                                           torchvision::transform_to_tensor() * 255))
   # masks
   mask <- torch::torch_stack(purrr::map(encoding_long, ~.x %>%
                                           dplyr::select(mlm_mask) %>%
@@ -675,7 +676,7 @@ create_features_from_docbank <- function(text_path,
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features = x_features, y_features = y_features, text = text, image = image, mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
   } else {
     list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$squeeze(1), mask = mask$squeeze(1))
   }
@@ -710,7 +711,7 @@ read_featureRDS <- function(file) {
   encoding_lst
 }
 
-
+#' @export
 mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
   # mask tokens idx
   encoding_lst$text <-
@@ -721,22 +722,29 @@ mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
   encoding_lst
 }
 
+#' @export
 mask_for_ltr <- function(encoding_lst) {
   # mask bbox
-  batch <- encoding_list$image$shape[[1]]
-  bbox <- torch::torch_cat(list(encoding_lst$x_feature[, , 1:2],encoding_lst$y_feature[, , 1:2]), dim = 3)
-  mask_bbox <- torch::torch_stack(purrr::map(
+  batch <- encoding_lst$image$shape[[1]]
+  bbox <- torch::torch_cat(list(
+    encoding_lst$x_feature[, , 1:1],
+    encoding_lst$y_feature[, , 1:1],
+    encoding_lst$x_feature[, , 2:2],
+    encoding_lst$y_feature[, , 2:2]),
+    dim = 3)
+  mask_bbox <- purrr::map(
     seq(batch),
-    ~ torch::torch_unique_consecutive(bbox[.x:.x, , ]$masked_select(encoding_lst$mask[.x:.x, , ])$view(c(-1, 4)), dim = 1)[[1]][2:N, ]
-  ))
+    ~ torch::torch_unique_consecutive(bbox[.x:.x, , ]$masked_select(encoding_lst$mask[.x:.x, , ]$logical_not())$view(c(-1, 4)), dim = 1)[[1]][2:N, ]
+  )
 
-  masked_image <- torch::torch_stack(purrr::map(
+  encoding_lst$image <- torch::torch_stack(purrr::map(
       seq(batch),
-      ~ encoding_list$image[.x, , , ] %>%
-        magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
-        magick::image_scale(target_geometry) %>%
-        torchvision::transform_to_tensor()
+      ~ torchvision::draw_bounding_boxes(
+          encoding_lst$image[.x, , , ],
+          mask_bbox[[.x]],
+          fill = TRUE,
+          color = "black"
+       )
   ))
-  encoding_lst$image <-
     encoding_lst
 }

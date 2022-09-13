@@ -529,16 +529,17 @@ docformer_for_masked_lm <- torch::nn_module(
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM) and loss
-    mm_mlm <- self$mm_mlm(self$docformer(mask_for_mm_mlm(x)))
+    masked_embedding <- self$docformer(mask_for_tdi(mask_for_ltr(mask_for_mm_mlm(x))))
+    mm_mlm <- self$mm_mlm(masked_embedding)
     long_shape <- x$text$shape[1] * self$config$max_position_embeddings
     mm_mlm_loss <- self$mlm_loss(
       mm_mlm$view(c(-1, config$vocab_size)),
       (x$text + 1L)$view(long_shape))$to(torch::torch_long())
 
     #  compute Learn To Reconstruct (LTR) on the CLS embedding
-    ltr <- self$ltr(self$docformer(mask_for_ltr(x)))
+    ltr <- self$ltr(masked_embedding)
     # TODO compute Text Describes Image (TDI) loss
-    tdi <- self$tdi(self$docformer(mask_for_tdi(x)))
+    tdi <- self$tdi(masked_embedding)
     # compute loss
     masked_lm_loss <- (
       5 * mm_mlm_loss +
