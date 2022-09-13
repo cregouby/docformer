@@ -58,7 +58,7 @@ apply_ocr <- function(image) {
 #' @param max_seq_len  unused
 #' @export
 #' @return list of token ids for each token
-.tokenize <- function(tokenizer, ...) {
+.tokenize <- function(tokenizer, x) {
   UseMethod(".tokenize")
 }
 #' @export
@@ -690,7 +690,6 @@ create_features_from_docbank <- function(text_path,
 #' @param encoding_lst : the feature tensor list to save
 #' @param file : destination file
 #'
-#' @return
 #' @export
 save_featureRDS <- function(encoding_lst, file) {
   # step 15: save to disk
@@ -701,7 +700,6 @@ save_featureRDS <- function(encoding_lst, file) {
 #'
 #' @param file : source file
 #'
-#' @return
 #' @export
 read_featureRDS <- function(file) {
   # step 15: load from disk
@@ -725,10 +723,20 @@ mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
 
 mask_for_ltr <- function(encoding_lst) {
   # mask bbox
+  batch <- encoding_list$image$shape[[1]]
   bbox <- torch::torch_cat(list(encoding_lst$x_feature[, , 1:2],encoding_lst$y_feature[, , 1:2]), dim = 3)
-  mask_bbox <- torch::torch_unique_consecutive(bbox$masked_select(encoding_lst$mask)$view(c(-1, 4)), dim = 1)[[1]]
+  mask_bbox <- torch::torch_stack(purrr::map(
+    seq(batch),
+    ~ torch::torch_unique_consecutive(bbox[.x:.x, , ]$masked_select(encoding_lst$mask[.x:.x, , ])$view(c(-1, 4)), dim = 1)[[1]][2:N, ]
+  ))
 
-  masked_image <-
+  masked_image <- torch::torch_stack(purrr::map(
+      seq(batch),
+      ~ encoding_list$image[.x, , , ] %>%
+        magick::image_crop(crop_geometry, gravity = "NorthWest") %>%
+        magick::image_scale(target_geometry) %>%
+        torchvision::transform_to_tensor()
+  ))
   encoding_lst$image <-
-  encoding_lst
+    encoding_lst
 }

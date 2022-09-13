@@ -20,9 +20,9 @@ a vector of size 4 integers with values normalised to \code{size}.
 }
 \description{
 Takes one or more bounding box and normalize each of their dimensions to \code{size}. If you notice it is
-just like calculating percentage except takes \code{size=1000} instead of 100.
+just like calculating percentage except takes \code{size = 1000} instead of 100.
 }
 \examples{
 # normalise bounding-box in percent
-normalize_box(c(227,34,274,41), width=2100, height=3970, size=100)
+normalize_box(c(227,34,274,41), width = 2100, height = 3970, size = 100)
 }

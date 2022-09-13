@@ -18,7 +18,6 @@ docformer_config(
   max_relative_positions = 8L,
   num_attention_heads = 12L,
   num_hidden_layers = 12L,
-  pad_token_id = 1L,
   vocab_size = 30522L,
   type_vocab_size = 2L,
   layer_norm_eps = 1e-12,
@@ -27,7 +26,8 @@ docformer_config(
   epochs = 5,
   pretraining_ratio = 0.5,
   verbose = FALSE,
-  device = "auto"
+  device = "auto",
+  dtype = torch::torch_float16()
 )
 }
 \arguments{
@@ -43,7 +43,7 @@ docformer_config(
 
 \item{hidden_size}{(int): Size of the hidden layer in common with text embedding and positional embedding (default 768)}
 
-\item{image_feature_pool_shape}{(vector of 3 int): Shqpe of the image feature pooling (default c(7,7,256))}
+\item{image_feature_pool_shape}{(vector of 3 int): Shqpe of the image feature pooling (default c(7,7,256), currently unused)}
 
 \item{intermediate_ff_size_factor}{(int): Intermediate feed-forward layer expension factor (default 3)}
 
@@ -56,8 +56,6 @@ docformer_config(
 \item{num_attention_heads}{(int): Number of attention heads in the encoder (default 12)}
 
 \item{num_hidden_layers}{(int): Number of attention layers in the encoder}
-
-\item{pad_token_id}{(int): Id of the padding token}
 
 \item{vocab_size}{(int): Length of the vocabulary}
 
@@ -80,6 +78,8 @@ training.}
 
 \item{device}{The device to use for training. "cpu" or "cuda". The default ("auto")
 uses  to "cuda" if it's available, otherwise uses "cpu".}
+
+\item{dtype}{The tensor dtype to be used for training. torch_float() or torch_float16(), the default.}
 }
 \value{
 a named list will all needed hyperparameters of the Docformer implementation.

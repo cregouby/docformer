@@ -15,7 +15,7 @@ they're cached? This is not currently exposed to the end user, and exists}
 \item{timeout}{the download timeout}
 }
 \value{
-
+path of the cached file
 }
 \description{
 Download and Cache Weights (the torchvision way)

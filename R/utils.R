@@ -23,7 +23,7 @@ NULL
 #'   they're cached? This is not currently exposed to the end user, and exists
 #' @param timeout the download timeout
 #'
-#' @return
+#' @return path of the cached file
 #' @export
 #'
 #' @examples
@@ -46,18 +46,18 @@ download_and_cache <- function(url, redownload = FALSE, timeout = 720) {
 }
 
 
-#' Download and Cache Weights (the torchtransformer way)
-#'
-#' Download weights for this model to the torchtransformers cache, or load them
-#' if they're already downloaded.
-#'
-#' @param model_name the name of the model to download or the local file
-#' @param redownload Logical; should the weights be downloaded fresh even if
-#'   they're cached? This is not currently exposed to the end user, and exists
-#' @param timeout Optional timeout in seconds for large file download.
-#'
-#' @return The parsed weights as a named list.
-#' @keywords internal
+# Download and Cache Weights (the torchtransformer way)
+#
+# Download weights for this model to the torchtransformers cache, or load them
+# if they're already downloaded.
+#
+# @param model_name the name of the model to download or the local file
+# @param redownload Logical; should the weights be downloaded fresh even if
+#   they're cached? This is not currently exposed to the end user, and exists
+# @param timeout Optional timeout in seconds for large file download.
+#
+# @return The parsed weights as a named list.
+# @keywords internal
 NULL
 # .download_weights <- function(model_name = "microsoft/layoutlm-base-uncased",
 #                               redownload = FALSE, timeout = 720) {

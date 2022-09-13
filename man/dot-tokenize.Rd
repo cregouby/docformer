@@ -4,7 +4,7 @@
 \alias{.tokenize}
 \title{tokenize the character vector and prepend the [CLS] token to first}
 \usage{
-.tokenize(tokenizer, ...)
+.tokenize(tokenizer, x)
 }
 \arguments{
 \item{tokenizer}{the tokenizer function}

@@ -21,7 +21,7 @@ df <- apply_ocr(image1)
 # poor quality scan
 df <- image2 \%>\% image_read() \%>\%
    image_resize("2000x") \%>\%
-   image_trim(fuzz=40) \%>\%
-   image_write(format='png', density="300x300") \%>\%
+   image_trim(fuzz = 40) \%>\%
+   image_write(format = 'png', density = "300x300") \%>\%
    apply_ocr()
 }

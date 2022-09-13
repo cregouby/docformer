@@ -91,7 +91,7 @@ LayoutLMEmbeddings <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertSelfAttention with Bert->LayoutLM
+# from transformers$models$bert$modeling_bert$BertSelfAttention with Bert->LayoutLM
 LayoutLMSelfAttention <- torch::nn_module(
   "LayoutLMSelfAttention",
   initialize = function(config, position_embedding_type = NULL) {
@@ -223,7 +223,7 @@ LayoutLMSelfAttention <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertSelfOutput with Bert->LayoutLM
+#  from transformers$models$bert$modeling_bert$BertSelfOutput with Bert->LayoutLM
 LayoutLMSelfOutput <- torch::nn_module(
   "LayoutLMSelfOutput",
   initialize = function(config) {
@@ -239,7 +239,7 @@ LayoutLMSelfOutput <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertAttention with Bert->LayoutLM
+#  from transformers$models$bert$modeling_bert$BertAttention with Bert->LayoutLM
 LayoutLMAttention <- torch::nn_module(
   "LayoutLMAttention",
   initialize = function(config, position_embedding_type = NULL) {
@@ -292,7 +292,7 @@ LayoutLMAttention <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertIntermediate
+#  from transformers$models$bert$modeling_bert$BertIntermediate
 LayoutLMIntermediate <- torch::nn_module(
   "LayoutLMIntermediate",
   initialize = function(config) {
@@ -306,7 +306,7 @@ LayoutLMIntermediate <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertOutput with Bert->LayoutLM
+#  from transformers$models$bert$modeling_bert$BertOutput with Bert->LayoutLM
 LayoutLMOutput <- torch::nn_module(
   "LayoutLMOutput",
   initialize = function(config) {
@@ -323,7 +323,7 @@ LayoutLMOutput <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertLayer with Bert->LayoutLM
+#  from transformers$models$bert$modeling_bert$BertLayer with Bert->LayoutLM
 LayoutLMLayer <- torch::nn_module(
   "LayoutLMLayer",
   initialize = function(config) {
@@ -407,7 +407,7 @@ LayoutLMLayer <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertEncoder with Bert->LayoutLM
+#  from transformers$models$bert$modeling_bert$BertEncoder with Bert->LayoutLM
 LayoutLMEncoder <- torch::nn_module(
   "LayoutLMEncoder",
   initialize = function(config) {
@@ -502,7 +502,7 @@ LayoutLMEncoder <- torch::nn_module(
 )
 
 
-# Copied from transformers$models$bert$modeling_bert$BertPooler
+# from transformers$models$bert$modeling_bert$BertPooler
 LayoutLMPooler <- torch::nn_module(
   "LayoutLMPooler",
   initialize = function(config) {
@@ -520,7 +520,7 @@ LayoutLMPooler <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertPredictionHeadTransform with Bert->LayoutLM
+# from transformers$models$bert$modeling_bert$BertPredictionHeadTransform with Bert->LayoutLM
 LayoutLMPredictionHeadTransform <- torch::nn_module(
   "LayoutLMPredictionHeadTransform",
   initialize = function(config) {
@@ -537,7 +537,7 @@ LayoutLMPredictionHeadTransform <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertLMPredictionHead with Bert->LayoutLM
+# from transformers$models$bert$modeling_bert$BertLMPredictionHead with Bert->LayoutLM
 LayoutLMLMPredictionHead <- torch::nn_module(
   "LayoutLMLMPredictionHead",
   initialize = function(config) {
@@ -560,7 +560,7 @@ LayoutLMLMPredictionHead <- torch::nn_module(
   }
 )
 
-# Copied from transformers$models$bert$modeling_bert$BertOnlyMLMHead with Bert->LayoutLM
+# from transformers$models$bert$modeling_bert$BertOnlyMLMHead with Bert->LayoutLM
 LayoutLMOnlyMLMHead <- torch::nn_module(
   "LayoutLMOnlyMLMHead",
   initialize = function(config) {
@@ -572,7 +572,8 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
   }
 )
 
-
+#' The LayoutLM model
+#'
 #' The LayoutLM model was proposed in [LayoutLM: Pre-training of Text and Layout for Document Image Understanding](https://arxiv.org/abs/1912.13318)
 #'  by Yiheng Xu, Minghao Li, Lei Cui, Shaohan Huang, Furu Wei and Ming Zhou.
 #'
@@ -580,10 +581,12 @@ LayoutLMOnlyMLMHead <- torch::nn_module(
 #' it as a regular module and refer to the documentation for all matter related to general usage and
 #' behavior.
 #'
-#' Parameters:
-#'     config ([`LayoutLMConfig`]): Model configuration class with all the parameters of the model.
+#' @param config list of all the parameters of the model.
 #'         Initializing with a config file does not load the weights associated with the model, only the
-#'         configuration. Check out the [`~PreTrainedModel$from_pretrained`] method to load the model weights.
+#'         configuration
+#'
+#' @return a torch::nn_module() of class BaseModelOutputWithPoolingAndCrossAttentions
+#' @export
 LayoutLMModel <- torch::nn_module(
   "LayoutLMPreTrainedModel",
   initialize = function(config) {

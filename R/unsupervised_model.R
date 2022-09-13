@@ -45,7 +45,7 @@ docformer_mlm <- torch::nn_module(
 #' @param lr learning-rate
 #' @param weights weights
 #'
-#' @return
+#' @return a docformer
 #' @export
 #'
 docformer_pretrain <- function(config, train_dataloader, val_dataloader, device, epochs, path, classes, lr = 5e-5, weights = weights) {

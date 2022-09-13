@@ -42,16 +42,16 @@ Turn DocBanks dataset into docformer torch tensor input feature
 \examples{
 # load a tokenizer with <mask> encoding capability
 sent_tok <- sentencepiece::sentencepiece_load_model(
-   system.file(package="sentencepiece", "models/nl-fr-dekamer.model")
+   system.file(package = "sentencepiece", "models/nl-fr-dekamer.model")
    )
 sent_tok$vocab_size <- sent_tok$vocab_size+1L
 sent_tok$vocabulary <- rbind(
    sent_tok$vocabulary,
-   data.frame(id=sent_tok$vocab_size, subword="<mask>")
+   data.frame(id = sent_tok$vocab_size, subword = "<mask>")
    )
 # turn pdf into feature
-text_path <- system.file(package="docformer", "DocBank_500K_txt")
-image_path <- system.file(package="docformer", "DocBank_500K_ori_img")
-docbanks_tt <- create_features_from_docbank(text_path, image_path, tokenizer=sent_tok)
+text_path <- system.file(package = "docformer", "DocBank_500K_txt")
+image_path <- system.file(package = "docformer", "DocBank_500K_ori_img")
+docbanks_tt <- create_features_from_docbank(text_path, image_path, tokenizer = sent_tok)
 
 }
