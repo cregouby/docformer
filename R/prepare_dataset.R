@@ -137,7 +137,7 @@ apply_ocr <- function(image) {
   return(mask_id)
 }
 
-#' Extrqct special tokens from tokenizer
+#' Extract special tokens from tokenizer
 #'
 #' @export
 #' @rdname special_tokens
