@@ -394,9 +394,9 @@ create_features_from_image <- function(image,
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features = x_features$unsqueeze(1), y_features = y_features$unsqueeze(1), text = text$unsqueeze(1), image = image$unsqueeze(1), mask = mask$unsqueeze(1))
+    list(x_features = x_features$unsqueeze(1), y_features = y_features$unsqueeze(1), text = text$unsqueeze(1), image = image$to(dtype = torch::torch_uint8())$unsqueeze(1), mask = mask$unsqueeze(1))
   } else {
-    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch::torch_uint8()), mask = mask)
   }
   # step 16: void keys to keep, resized_and_al&igned_bounding_boxes have been added for the purpose
   # to test if the bounding boxes are drawn correctly or not, it maybe removed
@@ -525,9 +525,9 @@ create_features_from_doc <- function(doc,
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch::torch_uint8()), mask = mask)
   } else {
-    list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$squeeze(1), mask = mask$squeeze(1))
+    list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$to(dtype = torch::torch_uint8())$squeeze(1), mask = mask$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
@@ -676,9 +676,9 @@ create_features_from_docbank <- function(text_path,
 
   # step 14: add extra dim for batch
   encoding_lst <- if (add_batch_dim) {
-    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch_uint8()), mask = mask)
+    list(x_features = x_features, y_features = y_features, text = text, image = image$to(dtype = torch::torch_uint8()), mask = mask)
   } else {
-    list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$squeeze(1), mask = mask$squeeze(1))
+    list(x_features = x_features$squeeze(1), y_features = y_features$squeeze(1), text = text$squeeze(1), image = image$to(dtype = torch::torch_uint8())$squeeze(1), mask = mask$squeeze(1))
   }
   # step 16: void keys to keep, resized_and_aligned_bounding_boxes have been added for the purpose to test if the bounding boxes are drawn correctly or not, it maybe removed
   class(encoding_lst) <- "docformer_tensor"
@@ -706,7 +706,7 @@ read_featureRDS <- function(file) {
   # step 15: load from disk
   encoding_lst <- readRDS(file = file)
   encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_int()))
-  encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_float())
+  encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_uint8())
   encoding_lst[[5]] <- torch::torch_tensor(encoding_lst[[5]],dtype = torch::torch_bool())
   encoding_lst
 }

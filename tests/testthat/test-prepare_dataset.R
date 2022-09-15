@@ -47,6 +47,7 @@ test_that("create_features_from_image works with default values", {
   expect_tensor_shape(image_tt$text, c(1, 512, 1))
   expect_tensor_shape(image_tt$mask, c(1, 512, 1))
   expect_tensor_dtype(image_tt$mask, "Bool")
+  expect_tensor_dtype(image_tt$image, "Byte")
   # first and last tensors are separators
   expect_equal_to_r(image_tt$text[1, 1, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "<s>",]$id)
   expect_equal_to_r(image_tt$text[1, 512, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "</s>",]$id)
@@ -74,11 +75,12 @@ test_that("create_features_from_doc provides expected output from default values
   expect_s3_class(page1_tt,"docformer_tensor")
   expect_equal(attr(page1_tt, "max_seq_len"), 512L)
   expect_length(page1_tt, 5)
-  expect_equal(page1_tt$x_features$shape, c(1, 512, 6))
-  expect_equal(page1_tt$y_features$shape, c(1, 512, 6))
-  expect_equal(page1_tt$text$shape, c(1, 512, 1))
-  expect_equal(page1_tt$mask$shape, c(1, 512, 1))
-  expect_equal(as.character(page1_tt$mask$dtype), "Bool")
+  expect_tensor_shape(page1_tt$x_features, c(1, 512, 6))
+  expect_tensor_shape(page1_tt$y_features, c(1, 512, 6))
+  expect_tensor_shape(page1_tt$text, c(1, 512, 1))
+  expect_tensor_shape(page1_tt$mask, c(1, 512, 1))
+  expect_tensor_dtype(page1_tt$mask, "Bool")
+  expect_tensor_dtype(page1_tt$image, "Byte")
   # first and last tensors are separators
   expect_equal_to_r(page1_tt$text[1, 1, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "<s>",]$id)
   expect_equal_to_r(page1_tt$text[1, 512, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "</s>",]$id)
@@ -110,6 +112,39 @@ test_that("create_features_from_doc provides expected output from default values
   expect_lte(doc_tt$image$shape[4], 384)
   expect_tensor_shape(doc_tt$mask, c(2, 512, 1))
   expect_tensor_dtype(doc_tt$mask, "Bool")
+  expect_tensor_dtype(page1_tt$image, "Byte")
+  # first and last tensors are separators
+  expect_equal_to_r(page1_tt$text[1, 1, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "<s>",]$id)
+  expect_equal_to_r(page1_tt$text[1, 512, 1], sent_tok_mask$vocabulary[sent_tok_mask$vocabulary$subword == "</s>",]$id)
+  expect_equal_to_r(page1_tt$x_features[1,1,1], as.numeric(page1_tt$x_features[1,512,1]))
+  # shape
+  expect_equal(page1_tt$image$shape[1:2], c(1, 3))
+  expect_true(all(tiny_tt$image$shape[3:4] <= c(500, 384)))
+  # values
+  expect_gte(page1_tt$text$min() %>% as.matrix, 0)
+
+  # hf tokenizer
+  # expect_error(.mask_id(hf_tok), regexp = "tokenizer do not encode <")
+
+  # tokenizer.bpe
+  expect_no_error(create_features_from_doc("2106.11539_1.pdf", bpe_tok_mask))
+
+  # Multi-page document
+  # sentencepiece
+  expect_no_error(doc_tt <- create_features_from_doc(doc, sent_tok_mask))
+  expect_type(doc_tt, "list")
+  expect_s3_class(doc_tt,"docformer_tensor")
+  expect_equal(attr(doc_tt, "max_seq_len"), 512L)
+  expect_length(doc_tt, 5)
+  expect_tensor_shape(doc_tt$x_features, c(2, 512, 6))
+  expect_tensor_shape(doc_tt$y_features, c(2, 512, 6))
+  expect_tensor_shape(doc_tt$text, c(2, 512, 1))
+  expect_equal(doc_tt$image$shape[1:2], c(2, 3))
+  expect_lte(doc_tt$image$shape[3], 500)
+  expect_lte(doc_tt$image$shape[4], 384)
+  expect_tensor_shape(doc_tt$mask, c(2, 512, 1))
+  expect_tensor_dtype(doc_tt$mask, "Bool")
+  expect_tensor_dtype(doc_tt$image, "Byte")
   # values
   expect_gte(doc_tt$text$min() %>% as.numeric(), 0)
 
@@ -130,6 +165,7 @@ test_that("create_features_from_doc correctly pads small content pages", {
   expect_tensor_shape(doc_tt$text, c(2, 512, 1))
   expect_tensor_shape(doc_tt$mask, c(2, 512, 1))
   expect_tensor_dtype(doc_tt$mask, "Bool")
+  expect_tensor_dtype(doc_tt$image, "Byte")
   # values
   expect_gte(doc_tt$text$min() %>% as.numeric, 0)
 

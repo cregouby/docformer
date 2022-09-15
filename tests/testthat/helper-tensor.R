@@ -45,11 +45,22 @@ expect_no_error <- function(object, ...) {
 
 expect_tensor <- function(object) {
   expect_true(torch:::is_torch_tensor(object))
-  expect_no_error(as.array(object$to(device = "cpu")))
+  # workaround torch_Half dtype not handled by as.array
+  if (as.character(object$dtype) == "Half") {
+    expect_no_error(as.array(object$to(dtype = torch::torch_float())$cpu()))
+  } else {
+    expect_no_error(as.array(object$cpu()))
+  }
 }
 
 expect_equal_to_r <- function(object, expected, ...) {
-  expect_equal(as.array(object$cpu()), expected, ...)
+  # workaround torch_Half dtype not handled by as.array
+  if (as.character(object$dtype) == "Half") {
+    expect_equal(as.array(object$to(dtype = torch::torch_float())$cpu()), expected, ...)
+  } else {
+    expect_equal(as.array(object$cpu()), expected, ...)
+  }
+
 }
 
 expect_tensor_shape <- function(object, expected) {
@@ -59,7 +70,7 @@ expect_tensor_shape <- function(object, expected) {
 
 expect_tensor_dtype <- function(object, expected_dtype) {
   expect_tensor(object)
-  expect_true(object$dtype == expected_dtype)
+  expect_equal(as.character(object$dtype), expected_dtype)
 }
 
 expect_undefined_tensor <- function(object) {

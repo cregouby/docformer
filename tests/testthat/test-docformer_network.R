@@ -58,5 +58,5 @@ test_that("docformer forward works with the expected tensor input", {
   docformer_net <- docformer:::docformer(config)
   expect_no_error(output_tt <- docformer_net(doc_tt))
   expect_tensor_shape(output_tt, c(2, config$max_position_embeddings, config$hidden_size))
-  expect_tensor_dtype(output_tt, config$dtype)
+  expect_tensor_dtype(output_tt, as.character(config$dtype))
 })

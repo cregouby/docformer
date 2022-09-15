@@ -29,7 +29,7 @@ resnet_feature_extractor <- torch::nn_module(
     # TODO adapt the output according to https://github.com/microsoft/unilm/blob/9865272c76829757b13292f1b51d2fcd7b5fa401/layoutlmft/layoutlmft/models/layoutlmv2/modeling_layoutlmv2.py#L601
   },
   forward = function(x) {
-    x  <- self$resnet50(x)
+    x  <- self$resnet50(x/255)
     x  <- self$conv1(x)
     x  <- self$relu1(x)
     y  <- x$reshape(c(x$shape[1:2], -1)) # "b e wl hl -> b e (wl.hl)" batch, embedding, width_low, height_low, wl*hl=192
