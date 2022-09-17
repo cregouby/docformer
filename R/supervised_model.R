@@ -26,7 +26,6 @@
 #'   training.
 #' @param device The device to use for training. "cpu" or "cuda". The default ("auto")
 #'   uses  to "cuda" if it's available, otherwise uses "cpu".
-#' @param dtype The tensor dtype to be used for training. torch_float() or torch_float16(), the default.
 #'
 #' @return a named list will all needed hyperparameters of the Docformer implementation.
 #' @export
@@ -66,9 +65,8 @@ docformer_config <- function(pretrained_model_name = NA_character_,
                              epochs = 5,
                              pretraining_ratio = 0.5,
                              verbose = FALSE,
-                             device = "auto",
-                             dtype = torch::torch_float16()
-) {
+                             device = "auto"
+ ) {
   # override config parameters from pretrained model if any
   if (!is.na(pretrained_model_name)) {
     if (pretrained_model_name %in% transformers_config$model_name) {
@@ -103,10 +101,6 @@ docformer_config <- function(pretrained_model_name = NA_character_,
     } else {
       device <- "cpu"
     }
-  }
-  # resolve dtype
-  if (torch::is_torch_dtype(dtype) && dtype != torch::torch_float16()) {
-    dtype <- torch::torch_float32()
   }
 
   list(

@@ -185,7 +185,7 @@ docformer_embeddings <- torch::nn_module(
 
     t_feat_s <-  x_calculated_embedding_t + y_calculated_embedding_t + self$position_embedding_t()
 
-    return(list(v_feat_s$to(self$config$dtype), t_feat_s$to(self$config$dtype)))
+    return(list(v_feat_s, t_feat_s))
 
   }
 )
@@ -210,10 +210,10 @@ pre_norm_attention <- torch::nn_module(
   },
   forward = function(text_feat, img_feat, text_spatial_feat, img_spatial_feat) {
     return(self$fn(
-              self$norm_t_feat(text_feat$to(torch::torch_float()))$to(self$config$dtype),
-              self$norm_v_feat(img_feat$to(torch::torch_float()))$to(self$config$dtype),
-              self$norm_t_feat_s(text_spatial_feat$to(torch::torch_float()))$to(self$config$dtype),
-              self$norm_v_feat_s(img_spatial_feat$to(torch::torch_float()))$to(self$config$dtype))
+              self$norm_t_feat(text_feat),
+              self$norm_v_feat(img_feat),
+              self$norm_t_feat_s(text_spatial_feat),
+              self$norm_v_feat_s(img_spatial_feat))
     )
   }
 )
@@ -259,13 +259,13 @@ relative_position <- torch::nn_module(
 
 multimodal_attention_layer <- torch::nn_module(
   "multimodal_attention_layer",
-  initialize = function(embed_dim, n_heads, max_relative_position, max_seq_length, dropout, dtype) {
+  initialize = function(embed_dim, n_heads, max_relative_position, max_seq_length, dropout) {
     self$embed_dim <- embed_dim
     self$n_heads <- n_heads
     self$head_dim <- embed_dim %/% n_heads
 
-    self$relative_positions_text <- relative_position(self$head_dim, max_relative_position, max_seq_length)$to(dtype)
-    self$relative_positions_img <- relative_position(self$head_dim, max_relative_position, max_seq_length)$to(dtype)
+    self$relative_positions_text <- relative_position(self$head_dim, max_relative_position, max_seq_length)
+    self$relative_positions_img <- relative_position(self$head_dim, max_relative_position, max_seq_length)
 
     # text qkv embeddings
     self$fc_k_text <- torch::nn_linear(embed_dim, embed_dim)
@@ -290,8 +290,8 @@ multimodal_attention_layer <- torch::nn_module(
       torch::nn_linear(embed_dim, embed_dim),
       torch::nn_dropout(dropout)
     )
-    self$dtype <- dtype
-    self$scale <- torch::torch_sqrt(embed_dim)$to(dtype = dtype)
+
+    self$scale <- torch::torch_sqrt(embed_dim)
 
   },
   forward = function(text_feat, img_feat, text_spatial_feat, img_spatial_feat) {
@@ -300,15 +300,15 @@ multimodal_attention_layer <- torch::nn_module(
     # self attention of text
     # b -> batch, t -> time steps (l -> length has same meaning), head -> # of heads, k -> head dim.
     # 'b t (head k) -> head b t k'
-    key_text_nh_bthk <- self$fc_k_text(text_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    key_text_nh_bthk <- self$fc_k_text(text_feat)$unsqueeze(4)
     dim <- key_text_nh_bthk$shape
     key_text_nh <- key_text_nh_bthk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4))
     # 'b l (head k) -> head b l k'
-    query_text_nh_blhk <- self$fc_q_text(text_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    query_text_nh_blhk <- self$fc_q_text(text_feat)$unsqueeze(4)
     dim <- query_text_nh_blhk$shape
     query_text_nh <- query_text_nh_blhk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4))
     # 'b t (head k) -> head b t k'
-    value_text_nh_bthk <- self$fc_v_text(text_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    value_text_nh_bthk <- self$fc_v_text(text_feat)$unsqueeze(4)
     dim <- value_text_nh_bthk$shape
     value_text_nh <- value_text_nh_bthk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4))
 
@@ -320,10 +320,10 @@ multimodal_attention_layer <- torch::nn_module(
     rel_pos_query_text <- torch::torch_einsum("bhld,lrd->bhlr", list(query_text_nh, rel_pos_embed_text))
 
     # shared spatial <-> text hidden features
-    key_spatial_text <- self$fc_k_spatial(text_spatial_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    key_spatial_text <- self$fc_k_spatial(text_spatial_feat)$unsqueeze(4)
     dim <- key_spatial_text$shape
     key_spatial_text_nh <- key_spatial_text$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b t (head k) -> head b t k'
-    query_spatial_text <- self$fc_q_spatial(text_spatial_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    query_spatial_text <- self$fc_q_spatial(text_spatial_feat)$unsqueeze(4)
     dim <- query_spatial_text$shape
     query_spatial_text_nh <- query_spatial_text$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4))  # 'b l (head k) -> head b l k'
     dots_text_spatial <- torch::torch_einsum("hblk,hbtk->hblt", list(query_spatial_text_nh, key_spatial_text_nh)) / self$scale
@@ -332,13 +332,13 @@ multimodal_attention_layer <- torch::nn_module(
     text_attn_scores <- dots_text + rel_pos_key_text + rel_pos_query_text + dots_text_spatial
 
     # self-attention of image
-    key_img_bthk <- self$fc_k_img(img_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    key_img_bthk <- self$fc_k_img(img_feat)$unsqueeze(4)
     dim <- key_img_bthk$shape
     key_img_nh <- key_img_bthk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b t (head k) -> head b t k'
-    query_img_blhk <- self$fc_q_img(img_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    query_img_blhk <- self$fc_q_img(img_feat)$unsqueeze(4)
     dim <- query_img_blhk$shape
     query_img_nh <- query_img_blhk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b l (head k) -> head b l k'
-    value_img_bthk <- self$fc_v_img(img_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4) # 'b t (head k) -> head b t k'
+    value_img_bthk <- self$fc_v_img(img_feat)$unsqueeze(4) # 'b t (head k) -> head b t k'
     dim <- value_img_bthk$shape
     value_img_nh <- value_img_bthk$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b t (head k) -> head b t k'
     dots_img <- torch::torch_einsum("hblk,hbtk->hblt", list(query_img_nh, key_img_nh)) / self$scale
@@ -349,10 +349,10 @@ multimodal_attention_layer <- torch::nn_module(
     rel_pos_query_img <- torch::torch_einsum("bhld,lrd->bhlr", list(query_img_nh, rel_pos_embed_text))
 
     # shared spatial <-> image features
-    key_spatial_img <- self$fc_k_spatial(img_spatial_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    key_spatial_img <- self$fc_k_spatial(img_spatial_feat)$unsqueeze(4)
     dim <- key_spatial_img$shape
     key_spatial_img_nh <- key_spatial_img$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b t (head k) -> head b t k'
-    query_spatial_img <- self$fc_q_spatial(img_spatial_feat$to(torch::torch_float()))$to(self$dtype)$unsqueeze(4)
+    query_spatial_img <- self$fc_q_spatial(img_spatial_feat)$unsqueeze(4)
     dim <- query_spatial_img$shape
     query_spatial_img_nh <- query_spatial_img$reshape(c(dim[1:2], self$n_heads, -1))$permute(c(3, 1, 2, 4)) # 'b l (head k) -> head b l k'
     dots_img_spatial <- torch::torch_einsum("hblk,hbtk->hblt", list(query_spatial_img_nh, key_spatial_img_nh)) / self$scale
@@ -360,8 +360,8 @@ multimodal_attention_layer <- torch::nn_module(
     # Line 59 of pseudo-code
     img_attn_scores <- dots_img + rel_pos_key_img + rel_pos_query_img + dots_img_spatial
 
-    text_attn_probs <- self$softmax_dropout(text_attn_scores$to(torch::torch_float()))$to(self$dtype)
-    img_attn_probs <- self$softmax_dropout(img_attn_scores$to(torch::torch_float()))$to(self$dtype)
+    text_attn_probs <- self$softmax_dropout(text_attn_scores)
+    img_attn_probs <- self$softmax_dropout(img_attn_scores)
 
     text_context <- torch::torch_einsum("hblt,hbtv->hblv", list(text_attn_probs, value_text_nh))
     img_context <- torch::torch_einsum("hblt,hbtv->hblv", list(img_attn_probs, value_img_nh))
@@ -369,7 +369,7 @@ multimodal_attention_layer <- torch::nn_module(
     context <- text_context + img_context
     dim <- context$shape
     embeddings <- context$permute(c(2, 3, 1, 4))$reshape(c(dim[2:3], -1, 1))$squeeze(4) # 'head b t d -> b t (head d)')
-    return(self$to_out(embeddings$to(torch::torch_float()))$to(self$dtype))
+    return(self$to_out(embeddings))
   }
 )
 docformer_encoder <- torch::nn_module(
@@ -378,6 +378,7 @@ docformer_encoder <- torch::nn_module(
     self$config <- config
     hidden_size <- config$hidden_size
     self$layers <- torch::nn_module_list()
+    # TODO Kill the for loop
     for (i in seq(config$num_hidden_layers)) {
       encoder_block <- torch::nn_module_list(list(
         pre_norm_attention(hidden_size,
@@ -385,8 +386,7 @@ docformer_encoder <- torch::nn_module(
                                              config$num_attention_heads,
                                              config$max_relative_positions,
                                              config$max_position_embeddings,
-                                             config$hidden_dropout_prob,
-                                             self$config$dtype
+                                             config$hidden_dropout_prob
                     )
         ),
         pre_norm(hidden_size,
@@ -407,7 +407,7 @@ docformer_encoder <- torch::nn_module(
       attn <- self$layers[[id]][[1]]
       ff <- self$layers[[id]][[2]]
       x <- attn(text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
-      text_feat <- ff(x$to(torch::torch_float()))$to(self$dtype) + x
+      text_feat <- ff(x) + x
       }
     return(text_feat)
 
@@ -431,11 +431,10 @@ extract_features <- torch::nn_module(
     self$visual_feature <- resnet_feature_extractor(config)
     self$language_feature <- language_feature_extractor(config)
     self$spatial_feature <- docformer_embeddings(config)
-    self$dtype <- config$dtype
   },
   forward = function(encoding) {
-    v_feat <- self$visual_feature(encoding$image)$to(self$dtype)
-    t_feat <- self$language_feature(encoding$text)$to(self$dtype)
+    v_feat <- self$visual_feature(encoding$image)
+    t_feat <- self$language_feature(encoding$text)
     v_feat_s_t_feat_s <- self$spatial_feature(encoding$x_features, encoding$y_features)
     return(list(v_feat, t_feat, v_feat_s_t_feat_s[[1]], v_feat_s_t_feat_s[[2]]))
 
@@ -454,7 +453,7 @@ docformer <- torch::nn_module(
   forward = function(x) {
     x_ex_fe <- self$extract_feature(x)
     x_enc <- self$encoder(x_ex_fe[[1]], x_ex_fe[[2]], x_ex_fe[[3]], x_ex_fe[[4]])
-    output <- self$dropout(x_enc$to(torch::torch_float()))$to(self$dtype)
+    output <- self$dropout(x_enc)
 
   }
 )
