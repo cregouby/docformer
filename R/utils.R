@@ -133,6 +133,16 @@ NULL
   model$load_state_dict(local_sd)
 }
 
+element_size <- function(dtype) {
+  dplyr::case_when(dtype=="Double" ~ 64,
+                   dtype=="Float" ~ 32,
+                   dtype=="Half" ~ 16,
+                   dtype=="Long" ~ 64,
+                   dtype=="Int" ~ 32,
+                   dtype=="Short" ~ 16,
+                   dtype=="Byte" ~ 8,
+                   dtype=="Bool" ~ 1)
+}
 
 #' @export
 torch_obj_size <- function(obj) {
@@ -148,30 +158,14 @@ torch_obj_size.default <- function(obj) {
 torch_obj_size.torch_tensor <- function(obj) {
   dtype <- as.character(obj$dtype)
   size <- prod(obj$shape)
-  element_size <- dplyr::case_when(dtype=="Double" ~ 64,
-                                   dtype=="Float" ~ 32,
-                                   dtype=="Half" ~ 16,
-                                   dtype=="Long" ~ 64,
-                                   dtype=="Int" ~ 32,
-                                   dtype=="Short" ~ 16,
-                                   dtype=="Byte" ~ 8,
-                                   dtype=="Bool" ~ 1)
-  return(lobstr:::new_bytes(size*element_size))
+  return(lobstr:::new_bytes(size * element_size(dtype)))
 }
 
 #' @export
 torch_obj_size.nn_module <- function(obj) {
-  dtype <- as.character(obj$dtype)
+  dtype <- as.character(obj$parameters[[1]]$dtype)
   size <- torch:::get_parameter_count(obj)
-  element_size <- dplyr::case_when(dtype=="Double" ~ 64,
-                                   dtype=="Float" ~ 32,
-                                   dtype=="Half" ~ 16,
-                                   dtype=="Long" ~ 64,
-                                   dtype=="Int" ~ 32,
-                                   dtype=="Short" ~ 16,
-                                   dtype=="Byte" ~ 8,
-                                   dtype=="Bool" ~ 1)
-  return(lobstr:::new_bytes(size*element_size))
+  return(lobstr:::new_bytes(size * element_size(dtype)))
 }
 
 #' @export
