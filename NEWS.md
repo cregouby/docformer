@@ -2,6 +2,6 @@
 
 * Add self-supervised learning tasks (@1).
 
-* `docformer_config()` now support `dtype = ` option that defaults to `torch_float16()` to reduce memory footprint
+* Switch image tensor to `torch_uint8()` to comply with torchvision functions
 
 

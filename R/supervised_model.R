@@ -127,8 +127,7 @@ docformer_config <- function(pretrained_model_name = NA_character_,
     batch_size = batch_size,
     pretraining_ratio = pretraining_ratio,
     verbose = verbose,
-    device = device,
-    dtype = dtype
+    device = device
   )
 
 

@@ -132,3 +132,50 @@ NULL
   }
   model$load_state_dict(local_sd)
 }
+
+
+#' @export
+torch_obj_size <- function(obj) {
+  UseMethod("torch_obj_size")
+}
+
+#' @export
+torch_obj_size.default <- function(obj) {
+  rlang::abort(paste0(obj, " is not recognized as a supported object type"))
+}
+
+#' @export
+torch_obj_size.torch_tensor <- function(obj) {
+  dtype <- as.character(obj$dtype)
+  size <- prod(obj$shape)
+  element_size <- dplyr::case_when(dtype=="Double" ~ 64,
+                                   dtype=="Float" ~ 32,
+                                   dtype=="Half" ~ 16,
+                                   dtype=="Long" ~ 64,
+                                   dtype=="Int" ~ 32,
+                                   dtype=="Short" ~ 16,
+                                   dtype=="Byte" ~ 8,
+                                   dtype=="Bool" ~ 1)
+  return(lobstr:::new_bytes(size*element_size))
+}
+
+#' @export
+torch_obj_size.nn_module <- function(obj) {
+  dtype <- as.character(obj$dtype)
+  size <- torch:::get_parameter_count(obj)
+  element_size <- dplyr::case_when(dtype=="Double" ~ 64,
+                                   dtype=="Float" ~ 32,
+                                   dtype=="Half" ~ 16,
+                                   dtype=="Long" ~ 64,
+                                   dtype=="Int" ~ 32,
+                                   dtype=="Short" ~ 16,
+                                   dtype=="Byte" ~ 8,
+                                   dtype=="Bool" ~ 1)
+  return(lobstr:::new_bytes(size*element_size))
+}
+
+#' @export
+torch_obj_size.docformer_tensor <- function(obj) {
+  purrr::map(obj, torch_obj_size)
+}
+

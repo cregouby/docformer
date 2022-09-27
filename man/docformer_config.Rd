@@ -26,8 +26,7 @@ docformer_config(
   epochs = 5,
   pretraining_ratio = 0.5,
   verbose = FALSE,
-  device = "auto",
-  dtype = torch::torch_float16()
+  device = "auto"
 )
 }
 \arguments{
@@ -78,8 +77,6 @@ training.}
 
 \item{device}{The device to use for training. "cpu" or "cuda". The default ("auto")
 uses  to "cuda" if it's available, otherwise uses "cpu".}
-
-\item{dtype}{The tensor dtype to be used for training. torch_float() or torch_float16(), the default.}
 }
 \value{
 a named list will all needed hyperparameters of the Docformer implementation.

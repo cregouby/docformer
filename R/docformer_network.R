@@ -377,8 +377,26 @@ docformer_encoder <- torch::nn_module(
   initialize = function(config) {
     self$config <- config
     hidden_size <- config$hidden_size
+    # self$attention <- torch::nn_module_list(lapply(
+    #   seq(config$num_hidden_layers),
+    #   pre_norm_attention(hidden_size,
+    #               multimodal_attention_layer(hidden_size,
+    #                                        config$num_attention_heads,
+    #                                        config$max_relative_positions,
+    #                                        config$max_position_embeddings,
+    #                                        config$hidden_dropout_prob
+    #               )
+    #   )
+    # ))
+    # self$ff <- torch::nn_module_list(lapply(
+    #   seq(config$num_hidden_layers),
+    #   pre_norm(hidden_size,
+    #           feed_forward(hidden_size,
+    #                       config$intermediate_size,
+    #                       dropout = config$hidden_dropout_prob)
+    #           )
+    # ))
     self$layers <- torch::nn_module_list()
-    # TODO Kill the for loop
     for (i in seq(config$num_hidden_layers)) {
       encoder_block <- torch::nn_module_list(list(
         pre_norm_attention(hidden_size,
@@ -402,6 +420,11 @@ docformer_encoder <- torch::nn_module(
                      img_feat,
                      text_spatial_feat,
                      img_spatial_feat) {
+    # for (id in seq_along(self$layers)) {
+    #   skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
+    #   x <- self$attention[[id]](text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
+    #   text_feat <- self$ff[[id]](x) + x
+    #   }
     for (id in seq_along(self$layers)) {
       skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
       attn <- self$layers[[id]][[1]]
@@ -468,16 +491,13 @@ ltr_conv_relu_block <- torch::nn_module(
 
   },
   forward = function(x) {
-    x %>% self$conv() %>% self$relu()
+    self$relu(self$conv(x))
   }
 )
 ltr_head <- torch::nn_module(
   "ltr_head",
   initialize = function() {
-    residual_layer <- torch::nn_module_list()
-    for (i in seq(18)) {
-      residual_layer$append(ltr_conv_relu_block)
-    }
+    residual_layer <- torch::nn_module_list(lapply(1:18, function(x) ltr_conv_relu_block()))
     self$residual_layer <- torch::nn_sequential(residual_layer)
     self$input <- torch::nn_conv2d(in_channels = 1, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = FALSE)
     torch::nn_init_normal_(self$input$weight, 0, sqrt(2 / (3 * 3 * 64)))
@@ -521,7 +541,7 @@ docformer_for_masked_lm <- torch::nn_module(
     self$tdi <- tdi_head(config)
 
     self$mlm_loss <- torch::nn_cross_entropy_loss()
-    self$ltr_losst <- torch::nn_smooth_l1_loss()
+    self$ltr_loss <- torch::nn_smooth_l1_loss()
     self$tdi_loss <- torch::nn_bce_with_logits_loss()
   },
   forward = function(x) {
@@ -549,7 +569,7 @@ docformer_for_masked_lm <- torch::nn_module(
     # TODO BUG compute logits
     # prediction_scores <- mm_mlm
 
-    # TODO extrqct other piggy values see layoutlm_network.R @826
+    # TODO extract other piggyback values see layoutlm_network.R @826
     result <- list(
       loss = masked_lm_loss,
       hidden_states = embedding$hidden_states,
