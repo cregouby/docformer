@@ -29,7 +29,7 @@ resnet_feature_extractor <- torch::nn_module(
     # TODO adapt the output according to https://github.com/microsoft/unilm/blob/9865272c76829757b13292f1b51d2fcd7b5fa401/layoutlmft/layoutlmft/models/layoutlmv2/modeling_layoutlmv2.py#L601
   },
   forward = function(x) {
-    x  <- self$resnet50(x/255)
+    x  <- self$resnet50(x / 255)
     x  <- self$conv1(x)
     x  <- self$relu1(x)
     y  <- x$reshape(c(x$shape[1:2], -1)) # "b e wl hl -> b e (wl.hl)" batch, embedding, width_low, height_low, wl*hl=192
@@ -377,42 +377,23 @@ docformer_encoder <- torch::nn_module(
   initialize = function(config) {
     self$config <- config
     hidden_size <- config$hidden_size
-    # self$attention <- torch::nn_module_list(lapply(
-    #   seq(config$num_hidden_layers),
-    #   pre_norm_attention(hidden_size,
-    #               multimodal_attention_layer(hidden_size,
-    #                                        config$num_attention_heads,
-    #                                        config$max_relative_positions,
-    #                                        config$max_position_embeddings,
-    #                                        config$hidden_dropout_prob
-    #               )
-    #   )
-    # ))
-    # self$ff <- torch::nn_module_list(lapply(
-    #   seq(config$num_hidden_layers),
-    #   pre_norm(hidden_size,
-    #           feed_forward(hidden_size,
-    #                       config$intermediate_size,
-    #                       dropout = config$hidden_dropout_prob)
-    #           )
-    # ))
     self$layers <- torch::nn_module_list()
     for (i in seq(config$num_hidden_layers)) {
       encoder_block <- torch::nn_module_list(list(
         pre_norm_attention(hidden_size,
-                    multimodal_attention_layer(hidden_size,
-                                             config$num_attention_heads,
-                                             config$max_relative_positions,
-                                             config$max_position_embeddings,
-                                             config$hidden_dropout_prob
-                    )
+                           multimodal_attention_layer(hidden_size,
+                                                      config$num_attention_heads,
+                                                      config$max_relative_positions,
+                                                      config$max_position_embeddings,
+                                                      config$hidden_dropout_prob
+                           )
         ),
         pre_norm(hidden_size,
-                feed_forward(hidden_size,
-                            config$intermediate_size,
-                            dropout = config$hidden_dropout_prob))
+                 feed_forward(hidden_size,
+                              config$intermediate_size,
+                              dropout = config$hidden_dropout_prob))
       ))
-    self$layers$append(encoder_block)
+      self$layers$append(encoder_block)
     }
 
   },
@@ -420,19 +401,15 @@ docformer_encoder <- torch::nn_module(
                      img_feat,
                      text_spatial_feat,
                      img_spatial_feat) {
-    # for (id in seq_along(self$layers)) {
-    #   skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
-    #   x <- self$attention[[id]](text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
-    #   text_feat <- self$ff[[id]](x) + x
-    #   }
     for (id in seq_along(self$layers)) {
       skip <- text_feat + img_feat + text_spatial_feat + img_spatial_feat
       attn <- self$layers[[id]][[1]]
       ff <- self$layers[[id]][[2]]
       x <- attn(text_feat, img_feat, text_spatial_feat, img_spatial_feat) + skip
-      text_feat <- ff(x) + x
-      }
-    return(text_feat)
+      x <- ff(x) + x
+      text_feat <- x
+    }
+    return(x)
 
   }
 )
