@@ -712,12 +712,12 @@ read_featureRDS <- function(file) {
 }
 
 #' @export
-mask_for_mm_mlm <- function(encoding_lst, tokenizer) {
+mask_for_mm_mlm <- function(encoding_lst, mask_id) {
   # mask tokens idx
   encoding_lst$text <-
     (
       torch::torch_mul(encoding_lst$text, encoding_lst$mask) +
-        torch::torch_mul(.mask_id(tokenizer),!encoding_lst$mask)
+        torch::torch_mul(mask_id, !encoding_lst$mask)
     )$to(torch::torch_int())
   encoding_lst
 }

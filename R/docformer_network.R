@@ -509,8 +509,9 @@ tdi_head <- torch::nn_module(
 
 docformer_for_masked_lm <- torch::nn_module(
   "docformer_for_masked_LM",
-  initialize = function(config) {
+  initialize = function(config, mask_id) {
     self$config <- config
+    self$mask_id <- mask_id
     self$docformer <- docformer(config)
 
     self$mm_mlm <- LayoutLMLMPredictionHead(config)
@@ -525,7 +526,7 @@ docformer_for_masked_lm <- torch::nn_module(
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM) and loss
-    masked_embedding <- self$docformer(mask_for_tdi(mask_for_ltr(mask_for_mm_mlm(x))))
+    masked_embedding <- self$docformer(mask_for_tdi(mask_for_ltr(mask_for_mm_mlm(x, self$mask_id))))
     mm_mlm <- self$mm_mlm(masked_embedding)
     long_shape <- x$text$shape[1] * self$config$max_position_embeddings
     mm_mlm_loss <- self$mlm_loss(

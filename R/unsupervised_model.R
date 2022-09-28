@@ -1,9 +1,9 @@
 # inspired by ?? need rework
 docformer_mlm <- torch::nn_module(
   "docformer_mlm",
-  initialize = function(config, lr = 5e-5) {
+  initialize = function(config, lr = 5e-5, mask_id) {
     self$save_hyperparameters()
-    self$docformer <- docformer_for_masked_lm(config)
+    self$docformer <- docformer_for_masked_lm(config, mask_id)
   },
   forward = function(x) {
     self$docformer(x)
