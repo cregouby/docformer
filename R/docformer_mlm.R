@@ -23,24 +23,27 @@ ltr_head <- torch::nn_module(
     self$s1 <-  self$s2 <- self$s3 <- self$s4 <- c(2, 2)      # 2d strides
     self$pd1 <- self$pd2 <- self$pd3 <-  self$pd4 <- c(0, 0)  # 2d padding
 
-    # Sampling vector : a nn_linear layer from x$shape[3] to 768 would be meaningfull
+    # Sampling vector :
+    # TODO a nn_linear layer from x$shape[3] to 768 would be meaningfull here
     # Decoder
+    # TODO two first sequential layers will be meaningless in case of low config$hidden_size
+    stopifnot("ltr head is lacking support of hidden_size != 768" = config$hidden_size == 768 )
     self$convTrans6 <- torch::nn_sequential(
       torch::nn_conv_transpose2d(in_channels = 768, out_channels = 192, kernel_size = self$k4,
                                  stride = self$s4, padding = self$pd4),
-      torch::nn_batch_norm2d(128, momentum = 0.01),
+      torch::nn_batch_norm2d(192, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
     self$convTrans7 <- torch::nn_sequential(
       torch::nn_conv_transpose2d(in_channels = 192, out_channels = 48, kernel_size = self$k3,
                                 stride = self$s3, padding = self$pd3),
-      torch::nn_batch_norm2d(32, momentum = 0.01),
+      torch::nn_batch_norm2d(48, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
     self$convTrans8 <- torch::nn_sequential(
       torch::nn_conv_transpose2d(in_channels = 48, out_channels = 12, kernel_size = self$k2,
                                 stride = self$s2, padding = self$pd2),
-      torch::nn_batch_norm2d(8, momentum = 0.01),
+      torch::nn_batch_norm2d(12, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
 
