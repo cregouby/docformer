@@ -234,7 +234,7 @@ test_that("mask_for_mm_mlm works as expected", {
   # expect_equal_to_r() would be too complex here
 
   all_masked_tt <- doc_tt
-  all_masked_tt$mask <- torch_zeros_like(doc_tt$mask)
+  all_masked_tt$mask <- torch::torch_zeros_like(doc_tt$mask)
   masked_doc <- mask_for_mm_mlm(all_masked_tt, 99999)
   expect_equal_to_r(masked_doc$text, array(rep(99999, prod(masked_doc$text$shape)), dim = masked_doc$text$shape))
 })

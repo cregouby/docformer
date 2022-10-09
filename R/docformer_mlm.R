@@ -26,26 +26,26 @@ ltr_head <- torch::nn_module(
     # Sampling vector : a nn_linear layer from x$shape[3] to 768 would be meaningfull
     # Decoder
     self$convTrans6 <- torch::nn_sequential(
-      torch::nn_conv_transpose2d(in_channels = 512, out_channels = 128, kernel_size = self$k4,
+      torch::nn_conv_transpose2d(in_channels = 768, out_channels = 192, kernel_size = self$k4,
                                  stride = self$s4, padding = self$pd4),
       torch::nn_batch_norm2d(128, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
     self$convTrans7 <- torch::nn_sequential(
-      torch::nn_conv_transpose2d(in_channels = 128, out_channels = 32, kernel_size = self$k3,
+      torch::nn_conv_transpose2d(in_channels = 192, out_channels = 48, kernel_size = self$k3,
                                 stride = self$s3, padding = self$pd3),
       torch::nn_batch_norm2d(32, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
     self$convTrans8 <- torch::nn_sequential(
-      torch::nn_conv_transpose2d(in_channels = 32, out_channels = 8, kernel_size = self$k2,
+      torch::nn_conv_transpose2d(in_channels = 48, out_channels = 12, kernel_size = self$k2,
                                 stride = self$s2, padding = self$pd2),
       torch::nn_batch_norm2d(8, momentum = 0.01),
       torch::nn_relu(inplace = TRUE),
     )
 
     self$convTrans9 <- torch::nn_sequential(
-      torch::nn_conv_transpose2d(in_channels = 8, out_channels = 3, kernel_size = self$k1,
+      torch::nn_conv_transpose2d(in_channels = 12, out_channels = 3, kernel_size = self$k1,
                                 stride = self$s1, padding = self$pd1),
       torch::nn_batch_norm2d(3, momentum = 0.01),
       torch::nn_sigmoid()    # y <- (y1, y2, y3) \in [0 ,1]^3
@@ -55,7 +55,8 @@ ltr_head <- torch::nn_module(
 
   },
   forward = function(x) {
-    img_reconstruct <- x$reshape(c(x$shape[1:2], 32, 24 ))
+    x <- x$permute(c(1, 3, 2)) # "b s e -> b e s", batch, embedding, sequence
+    img_reconstruct <- x$reshape(c(x$shape[1:2], 16, 32 )) # "b e s -> b e (wl.hl)", batch, embedding,  width_low, height_low, wl*hl=512
     img_reconstruct <-  self$convTrans6(img_reconstruct)
     img_reconstruct <-  self$convTrans7(img_reconstruct)
     img_reconstruct <-  self$convTrans8(img_reconstruct)
@@ -95,14 +96,14 @@ docformer_for_masked_lm <- torch::nn_module(
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM) and loss
-    masked_embedding <- self$docformer(mask_for_tdi(mask_for_ltr(mask_for_mm_mlm(x, self$mask_id))))
+    masked_embedding <- self$docformer(mask_for_tdi(mask_for_mm_mlm(x, self$mask_id)))
     mm_mlm <- self$mm_mlm(masked_embedding)
     long_shape <- x$text$shape[1] * self$config$max_position_embeddings
     mm_mlm_loss <- self$mlm_loss(
       mm_mlm$view(c(-1, config$vocab_size)),
       (x$text + 1L)$view(long_shape))$to(torch::torch_long())
     #  compute Learn To Reconstruct (LTR) the image and loss
-    ltr <- self$ltr(masked_embedding)
+    ltr <- self$ltr(embedding)
     ltr_loss <- self$ltr_loss(torch::nnf_interpolate(ltr, x$image$shape[3:4]), x$image)
     # TODO compute Text Describes Image (TDI) loss
     tdi <- self$tdi(masked_embedding)
