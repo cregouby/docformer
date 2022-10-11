@@ -748,3 +748,15 @@ mask_for_ltr <- function(encoding_lst) {
   ))
     encoding_lst
 }
+#' @export
+mask_for_tdi <- function(encoding_lst) {
+  # sample 20 % of the batch
+  batch <- encoding_lst$image$shape[[1]]
+  is_image_masked <- rbernoulli(batch, p = 0.2)
+  randomized_image <- sample(which(!is_image_masked),size = batch, replace = T)
+  masked_image_id <- (seq_len(batch) * !is_image_masked) + (randomized_image * is_image_masked)
+  # permute switched image with other images from the batch
+  encoding_lst$image <- encoding_lst$image[masked_image_id,,,]
+  encoding_lst$image_mask <- is_image_masked
+  return(encoding_lst)
+}

@@ -16,7 +16,7 @@ ltr_conv_relu_block <- torch::nn_module(
 # from ResNet VAE Decoder https://github.com/hsinyilin19/ResNetVAE/blob/master/modules.py
 ltr_head <- torch::nn_module(
   "ltr_head",
-  initialize = function() {
+  initialize = function(config) {
     # CNN architechtures
     self$k1 <- c(5, 5)      # 2d kernal size
     self$k2 <- self$k3 <- self$k4 <- c(3, 3)      # 2d kernal size
@@ -71,12 +71,13 @@ ltr_head <- torch::nn_module(
 tdi_head <- torch::nn_module(
   "tdi_head",
   initialize = function(config) {
-    # TODO
-
+    self$tdi_classifier <- torch::nn_sequential(
+      torch::nn_linear(config$hidden_size, 1),
+      torch::nn_sigmoid()
+    )
   },
   forward = function(x) {
-    # TODO
-    x
+    self$tdi_classifier(x[,1,])
   }
 )
 
@@ -88,10 +89,11 @@ docformer_for_masked_lm <- torch::nn_module(
     self$docformer <- docformer(config)
 
     self$mm_mlm <- LayoutLMLMPredictionHead(config)
-    self$ltr <- ltr_head()
+    self$mlm_sigmoid <- torch::nn_sigmoid()
+    self$ltr <- ltr_head(config)
     self$tdi <- tdi_head(config)
 
-    self$mlm_loss <- torch::nn_cross_entropy_loss()
+    self$mlm_loss <- torch::nn_cross_entropy_loss(ignore_index = mask_id)
     self$ltr_loss <- torch::nn_smooth_l1_loss()
     self$tdi_loss <- torch::nn_bce_with_logits_loss()
   },
@@ -99,32 +101,33 @@ docformer_for_masked_lm <- torch::nn_module(
     # compute sequence embedding
     embedding <- self$docformer(x)
     # compute Multi-Modal Masked Language Modeling (MM-MLM) and loss
-    masked_embedding <- self$docformer(mask_for_tdi(mask_for_mm_mlm(x, self$mask_id)))
-    mm_mlm <- self$mm_mlm(masked_embedding)
-    long_shape <- x$text$shape[1] * self$config$max_position_embeddings
+    masked_x <- mask_for_tdi(mask_for_mm_mlm(x, self$mask_id))
+    masked_embedding <- self$docformer(masked_x)
+    # compute masked sequence embedding loss
     mm_mlm_loss <- self$mlm_loss(
-      mm_mlm$view(c(-1, config$vocab_size)),
-      (x$text + 1L)$view(long_shape))$to(torch::torch_long())
-    #  compute Learn To Reconstruct (LTR) the image and loss
+      (self$mm_mlm(masked_embedding) %>% self$mlm_sigmoid())$movedim(1,2),
+      (x$text + 1L)$squeeze(3)$to(torch::torch_long())
+    )
+    #  compute Learn To Reconstruct (LTR) the image and loss on images not masked by TDI
     ltr <- self$ltr(embedding)
-    ltr_loss <- self$ltr_loss(torch::nnf_interpolate(ltr, x$image$shape[3:4]), x$image)
+    ltr_loss <- self$ltr_loss(
+      torch::nnf_interpolate(ltr, x$image$shape[3:4]) * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1),
+      x$image * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1)
+    )
     # TODO compute Text Describes Image (TDI) loss
     tdi <- self$tdi(masked_embedding)
     # compute loss
     masked_lm_loss <- (
       5 * mm_mlm_loss +
-        ltr_loss +
-        5 * self$tdi_loss(tdi, x)
+      ltr_loss +
+      5 * self$tdi_loss(tdi, masked_x$image_mask)
     )
 
-    # TODO BUG compute logits
-    # prediction_scores <- mm_mlm
-
-    # TODO extract other piggyback values see layoutlm_network.R @826
+    # TODO extract other piggyback values see layoutlm_network.R @856
     result <- list(
       loss = masked_lm_loss,
-      hidden_states = embedding$hidden_states,
-      attentions = embedding$attentions
+      # hidden_states = embedding$hidden_states,
+      # attentions = embedding$attentions
     )
     class(result) <- "MaskedLMOutput"
     return(result)

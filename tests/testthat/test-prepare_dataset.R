@@ -238,3 +238,11 @@ test_that("mask_for_mm_mlm works as expected", {
   masked_doc <- mask_for_mm_mlm(all_masked_tt, 99999)
   expect_equal_to_r(masked_doc$text, array(rep(99999, prod(masked_doc$text$shape)), dim = masked_doc$text$shape))
 })
+
+test_that("mask_for_tdi works as expected", {
+  encoding_lst <- list()
+  encoding_lst$image <- torch::torch_rand(c(12,3,32,16))
+  expect_no_error(masked_doc <- mask_for_tdi(encoding_lst))
+  expect_tensor_shape(masked_doc$image, c(12,3,32,16))
+
+})

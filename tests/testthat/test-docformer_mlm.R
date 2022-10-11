@@ -13,6 +13,17 @@ test_that("docformer_for_masked_lm unitary functions work", {
   expect_no_error(ltr_loss <- docformer_net$ltr_loss(torch::nnf_interpolate(ltr, doc_tt$image$shape[3:4]), doc_tt$image))
   # tdi
   expect_no_error(tdi <- docformer_net$tdi(embedding))
-  expect_tensor_shape(tdi, c(2, config$max_position_embeddings, config$hidden_size))
+  expect_tensor_shape(tdi, c(2, 1))
+  expect_gte(as.numeric(tdi$min()), 0)
+  expect_lte(as.numeric(tdi$max()), 1)
+
+})
+test_that("docformer_for_masked_lm work", {
+  # config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
+  config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
+  docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask))
+
+  expect_no_error(result <- docformer_net(doc_tt))
+  expect_tensor_dtype(result$loss, "Float")
 
 })
