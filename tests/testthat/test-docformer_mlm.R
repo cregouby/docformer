@@ -1,5 +1,4 @@
 test_that("docformer_for_masked_lm unitary functions work", {
-  # config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
   docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask))
   embedding <- docformer_net$docformer(mask_for_mm_mlm(doc_tt, .mask_id(bpe_tok_mask)))
@@ -18,8 +17,15 @@ test_that("docformer_for_masked_lm unitary functions work", {
   expect_lte(as.numeric(tdi$max()), 1)
 
 })
+
+test_that("docformer_for_masked_lm on non default design raise an exception", {
+  config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
+  expect_error(docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask)),
+               "hidden_size"
+  )
+})
+
 test_that("docformer_for_masked_lm work", {
-  # config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
   docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask))
 

@@ -114,7 +114,7 @@ docformer_for_masked_lm <- torch::nn_module(
       torch::nnf_interpolate(ltr, x$image$shape[3:4]) * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1),
       x$image * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1)
     )
-    # TODO compute Text Describes Image (TDI) loss
+    # compute Text Describes Image (TDI) loss
     tdi <- self$tdi(masked_embedding)
     # compute loss
     masked_lm_loss <- (
