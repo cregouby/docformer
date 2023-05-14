@@ -34,9 +34,11 @@ resize_align_bbox <- function(bbox, origin_w, origin_h, target_w, target_h) {
 #'
 #' @examples
 #' # good quality scan
-#' df <- apply_ocr(image1)
+#' image <- system.file("2106.11539_1.png", package = "docformer")
+#' df <- apply_ocr(image)
 #' # poor quality scan
-#' df <- image2 %>% image_read() %>%
+#' library(magick)
+#' df <- image %>% image_read() %>%
 #'    image_resize("2000x") %>%
 #'    image_trim(fuzz = 40) %>%
 #'    image_write(format = 'png', density = "300x300") %>%
@@ -55,25 +57,25 @@ apply_ocr <- function(image) {
 #'
 #' @param tokenizer the tokenizer function
 #' @param x character vector to encode
-#' @param max_seq_len  unused
+#' @param ... may include `max_seq_len` in future releases. Currently unused
 #' @export
 #' @return list of token ids for each token
-.tokenize <- function(tokenizer, x, max_seq_len) {
+.tokenize <- function(tokenizer, x, ...) {
   UseMethod(".tokenize")
 }
 #' @export
-.tokenize.default <- function(tokenizer, x, max_seq_len) {
+.tokenize.default <- function(tokenizer, x, ...) {
   rlang::abort(paste0(tokenizer, " is not recognized as a supported tokenizer"))
 }
 #' @export
-.tokenize.tokenizer <- function(tokenizer, x) {
+.tokenize.tokenizer <- function(tokenizer, x, ...) {
   idx <- purrr::map(x, ~tokenizer$encode(.x)$ids)
   # TODO BUG shall shift-right after max_seq_len slicing
   # idx[[1]] <- idx[[1]] %>% purrr::prepend(tokenizer$encode("[CLS]")$ids)
   return(idx)
 }
 #' @export
-.tokenize.youtokentome <- function(tokenizer, x, max_seq_len) {
+.tokenize.youtokentome <- function(tokenizer, x, ...) {
   idx <- purrr::map(x, ~tokenizers.bpe::bpe_encode(tokenizer, .x, type = "ids")[[1]])
   # # prepend sequence with CLS token
   # idx[[1]] <- dplyr::first(idx) %>%
@@ -87,7 +89,7 @@ apply_ocr <- function(image) {
   return(idx)
 }
 #' @export
-.tokenize.sentencepiece <- function(tokenizer, x, max_seq_len) {
+.tokenize.sentencepiece <- function(tokenizer, x, ...) {
   idx <- purrr::map(x, ~sentencepiece::sentencepiece_encode(tokenizer, .x, type = "ids")[[1]])
   # # prepend sequence with CLS token
   # idx[[1]] <- dplyr::first(idx) %>%
@@ -108,7 +110,7 @@ apply_ocr <- function(image) {
   UseMethod(".mask_id")
 }
 #' @export
-.mask_id.default <- function(tokenizer ) {
+.mask_id.default <- function(tokenizer) {
   rlang::abort(paste0(tokenizer, " is not recognized as a supported tokenizer"))
 }
 #' @export

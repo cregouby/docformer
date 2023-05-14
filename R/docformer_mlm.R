@@ -77,6 +77,7 @@ tdi_head <- torch::nn_module(
     )
   },
   forward = function(x) {
+    # classify "does_text_describe_image" from CLS embedding
     self$tdi_classifier(x[,1,])
   }
 )

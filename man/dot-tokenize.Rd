@@ -4,14 +4,14 @@
 \alias{.tokenize}
 \title{tokenize the character vector and prepend the [CLS] token to first}
 \usage{
-.tokenize(tokenizer, x, max_seq_len)
+.tokenize(tokenizer, x, ...)
 }
 \arguments{
 \item{tokenizer}{the tokenizer function}
 
 \item{x}{character vector to encode}
 
-\item{max_seq_len}{unused}
+\item{...}{may include \code{max_seq_len} in future releases. Currently unused}
 }
 \value{
 list of token ids for each token

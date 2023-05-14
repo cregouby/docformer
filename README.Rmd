@@ -78,12 +78,12 @@ docformer_model <- docformer(config)
 ```
 
 
-### Pretrain the model (Work in progress)
+### Pretrain the model
 A self-supervised training task can be run with
 
 ```{r }
 # train a model from that tensor
-# docformer_ssl <- docformer_pretrain(doc_tensor, epochs=30)
+docformer_ssl <- docformer_pretrain(doc_tensor, epochs=30)
 
 ```
 
