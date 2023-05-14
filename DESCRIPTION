@@ -30,7 +30,7 @@ Imports:
     rlang,
     tibble,
     vctrs,
-    torchvision 
+    torchvision  (>= 0.5.0)
 Suggests: 
     dials,
     dplyr,
@@ -55,8 +55,6 @@ Suggests:
     vip,
     withr,
     workflows
-Remotes:
-    cregouby/torchvision@feature/utils_draw_bbox
 VignetteBuilder: knitr
 Config/testthat/parallel: true
 Config/testthat/edition: 3
