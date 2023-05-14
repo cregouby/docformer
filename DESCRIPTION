@@ -30,7 +30,7 @@ Imports:
     rlang,
     tibble,
     vctrs,
-    torchvision (>= 0.4.1.9000)
+    torchvision 
 Suggests: 
     dials,
     dplyr,
