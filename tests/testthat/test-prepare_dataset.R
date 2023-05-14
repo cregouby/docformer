@@ -11,15 +11,15 @@ test_that(".tokenize return a flat list for sentencepiece and tokenizers.bpe", {
   phrase <- c("This", "Simple", "Coconut", "Curry", "Recipe", "Produces", "Flavorful", "Fish", "Fast")
   # sentencepiece
   expect_no_error(tokenized <- .tokenize(tokenizer=sent_tok, phrase, 20))
-  expect_true(purrr::vec_depth(tokenized)==2)
+  expect_true(purrr::pluck_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct  max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
   # hf tokenizer
   # expect_error(tokenized <- .tokenize(tokenizer=hf_tok, phrase),NA)
-  # expect_true(purrr::vec_depth(tokenized)==2)
+  # expect_true(purrr::pluck_depth(tokenized)==2)
   # tokenizer.bpe
   expect_no_error(tokenized <- .tokenize(tokenizer=bpe_tok, phrase, 20))
-  expect_true(purrr::vec_depth(tokenized)==2)
+  expect_true(purrr::pluck_depth(tokenized)==2)
   # test of no unknown value, correct first value, correct max_seq_len th value
   expect_true(all(purrr::map_lgl(tokenized %>% purrr::flatten(), ~.x>=1)))
 })
