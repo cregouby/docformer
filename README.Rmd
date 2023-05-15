@@ -54,10 +54,15 @@ library(docformer)
 # get the corpus
 doc <- pins::pin("https://arxiv.org/pdf/2106.11539.pdf")
 
-# load a sentencepiece tokenizer and add a <mask> token if needed
-tok_model <- sentencepiece::sentencepiece_load_model(system.file(package="sentencepiece", "models/nl-fr-dekamer.model"))
-tok_model$vocab_size <- tok_model$vocab_size+1L
-tok_model$vocabulary <- rbind(tok_model$vocabulary, data.frame(id=tok_model$vocab_size, subword="<mask>"))
+# load a sentencepiece tokenizer and add a <mask> and <pad> missing token.
+tok_model <-sentencepiece_load_model(system.file(package = "sentencepiece", "models/nl-fr-dekamer.model"))
+# prepend tokenizer with mandatory tokens
+tok_model$vocab_size <- tok_model$vocab_size + 2L
+# Add <mask> and <pad>. Here <mask> is at id=0
+tok_model$vocabulary <- rbind(data.frame(subword = c("<mask>", "<pad>")), 
+                              tok_model$vocabulary["subword"]) %>% 
+  tibble::rowid_to_column("id") %>%
+  dplyr::mutate(id = id - 1)
 
 # turn the document into docformer input tensor
 doc_tensor <- create_features_from_doc(doc = doc, tokenizer = tok_model)
@@ -78,12 +83,12 @@ docformer_model <- docformer(config)
 ```
 
 
-### Pretrain the model
+### Pretrain the model (work in progress)
 A self-supervised training task can be run with
 
 ```{r }
 # train a model from that tensor
-docformer_ssl <- docformer_pretrain(doc_tensor, epochs=30)
+# docformer_ssl <- docformer_pretrain(doc_tensor, epochs=30)
 
 ```
 
