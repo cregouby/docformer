@@ -11,9 +11,6 @@ save_featureRDS(encoding_lst, file)
 
 \item{file}{: destination file}
 }
-\value{
-
-}
 \description{
 Save feature tensor to disk
 }

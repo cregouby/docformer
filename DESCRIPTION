@@ -10,42 +10,54 @@ Description: Implements the 'DocFormer' model by Srikar Appalaraju & al (2021) <
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 URL: https://github.com/cregouby/docformer
 BugReports: https://github.com/cregouby/docformer/issues
 Imports: 
-    torch,
-    hardhat,
-    magrittr,
-    glue,
-    progress,
-    rlang,
-    methods,
-    tibble,
-    pdftools,
+    torch (>= 0.8.0),
     coro,
+    fs,
+    glue,
+    hardhat,
+    jsonlite,
+    lobstr,
+    luz,
+    magrittr,
+    methods,
+    progress,
+    rappdirs,
+    readr,
+    rlang,
+    tibble,
     vctrs,
-    torchvision 
+    torchvision  (>= 0.5.0)
 Suggests: 
-    testthat (>= 3.0.0),
-    modeldata,
-    recipes,
-    parsnip,
     dials,
-    withr,
+    dplyr,
+    ggplot2,
+    here,
     knitr,
+    modeldata,
+    magick,
+    parsnip,
+    pins,
+    pdftools,
+    purrr,
+    qpdf,
+    recipes,
     rmarkdown,
     sentencepiece,
-    tokenizers.bpe,
-    vip,
-    tidyverse,
-    ggplot2,
-    dplyr,
+    stringr,
+    tesseract,
+    testthat (>= 3.0.0),
     tidyr,
-    purrr,
+    tokenizers.bpe,
     tune,
+    vip,
+    withr,
     workflows
 VignetteBuilder: knitr
+Config/testthat/parallel: true
 Config/testthat/edition: 3
 Depends: 
     R (>= 3.5.0)

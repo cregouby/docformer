@@ -1,18 +1,18 @@
 #' Configuration for Docformer models
 #'
+#' @param pretrained_model_name (character) : one of the supported model name in `transformers_config` to derive config from.
 #' @param coordinate_size (int): Output size of each coordinate embedding (default 128)
 #' @param shape_size (int): Output size of each position embedding (default 128)
 #' @param hidden_dropout_prob (float): Dropout probability in docformer_encoder block (default 0.1)
 #' @param attention_dropout_prob (float): Dropout probability in docformer_attention block (default 0.1)
 #' @param hidden_size (int): Size of the hidden layer in common with text embedding and positional embedding (default 768)
-#' @param image_feature_pool_shape (vector of 3 int): Shqpe of the image feature pooling (default c(7,7,256))
+#' @param image_feature_pool_shape (vector of 3 int): Shqpe of the image feature pooling (default c(7,7,256), currently unused)
 #' @param intermediate_ff_size_factor (int): Intermediate feed-forward layer expension factor (default 3)
 #' @param max_2d_position_embeddings (int): Max size of vector hosting the 2D embedding (default 1024)
 #' @param max_position_embeddings (int): Max sequence length for 1D embedding (default 512)
 #' @param max_relative_positions (int): Max number of position to look at in multimodal attention layer (default 8)
 #' @param num_attention_heads (int): Number of attention heads in the encoder (default 12)
 #' @param num_hidden_layers (int): Number of attention layers in the encoder
-#' @param pad_token_id (int): Id of the padding token
 #' @param vocab_size (int): Length of the vocabulary
 #' @param type_vocab_size (int): Length of the type vocabulary
 #' @param layer_norm_eps (float): Epsilon value used in normalisation layer (default 1e-12)
@@ -26,7 +26,6 @@
 #'   training.
 #' @param device The device to use for training. "cpu" or "cuda". The default ("auto")
 #'   uses  to "cuda" if it's available, otherwise uses "cpu".
-#' @param pretrained_model_name (character) : one of the supported model name in `transformers_config` to derive config from.
 #'
 #' @return a named list will all needed hyperparameters of the Docformer implementation.
 #' @export
@@ -45,7 +44,7 @@
 #'   epoch =5
 #'   )
 #'
-docformer_config <- function(pretrained_model_name=NA_character_,
+docformer_config <- function(pretrained_model_name = NA_character_,
                              coordinate_size = 128L,
                              shape_size = 128L,
                              hidden_dropout_prob = 0.1,
@@ -58,7 +57,6 @@ docformer_config <- function(pretrained_model_name=NA_character_,
                              max_relative_positions = 8L,
                              num_attention_heads = 12L,
                              num_hidden_layers = 12L,
-                             pad_token_id = 1L,
                              vocab_size = 30522L,
                              type_vocab_size = 2L,
                              layer_norm_eps = 1e-12,
@@ -68,15 +66,15 @@ docformer_config <- function(pretrained_model_name=NA_character_,
                              pretraining_ratio = 0.5,
                              verbose = FALSE,
                              device = "auto"
-) {
+ ) {
   # override config parameters from pretrained model if any
   if (!is.na(pretrained_model_name)) {
     if (pretrained_model_name %in% transformers_config$model_name) {
       transformer_c <- transformers_config %>% dplyr::filter(model_name == pretrained_model_name)
       hidden_size <- transformer_c$hidden_size
       shape_size <- hidden_size %/% 6
-      coordinate_size <- (hidden_size - 4 * shape_size)/2
-      intermediate_ff_size_factor <-transformer_c$intermediate_ff_size_factor
+      coordinate_size <- as.integer((hidden_size - 4 * shape_size) / 2)
+      intermediate_ff_size_factor <- transformer_c$intermediate_ff_size_factor
       max_2d_position_embeddings <- transformer_c$max_2d_position_embeddings
       max_position_embeddings <- transformer_c$max_position_embeddings
       num_attention_heads <- transformer_c$n_head
@@ -89,16 +87,16 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     pretrained_model_name <- "microsoft/layoutlm-base-uncased"
   }
   # consistency check in model design parameters
-  if (hidden_size %% num_attention_heads !=0) {
-    rlang::abort(message="Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
+  if (hidden_size %% num_attention_heads != 0) {
+    rlang::abort(message = "Error: `hidden_size` is not multiple of `num_attention_heads` which prevent initialization of the multimodal_attention_layer")
   }
 
   if (2 * coordinate_size + 4 * shape_size != hidden_size) {
-    rlang::abort(message="Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
+    rlang::abort(message = "Error: `coordinate_size` x 2 +  `shape_size` x 4 do not equal `hidden_size`")
   }
   # resolve device
   if (device == "auto") {
-    if (torch::cuda_is_available()){
+    if (torch::cuda_is_available()) {
       device <- "cuda"
     } else {
       device <- "cpu"
@@ -106,6 +104,7 @@ docformer_config <- function(pretrained_model_name=NA_character_,
   }
 
   list(
+    pretrained_model_name = pretrained_model_name,
     coordinate_size = coordinate_size,
     hidden_dropout_prob = hidden_dropout_prob,
     attention_dropout_prob = attention_dropout_prob,
@@ -117,20 +116,18 @@ docformer_config <- function(pretrained_model_name=NA_character_,
     max_relative_positions = max_relative_positions,
     num_attention_heads = num_attention_heads,
     num_hidden_layers = num_hidden_layers,
-    pad_token_id = pad_token_id,
     shape_size = shape_size,
     vocab_size = vocab_size,
     type_vocab_size = type_vocab_size,
-    layer_norm_eps = layer_norm_eps,
-    batch_size = batch_size,
-    pretraining_ratio = pretraining_ratio,
-    verbose = verbose,
-    device = device,
     is_decoder = FALSE,
     intermediate_size = intermediate_ff_size_factor * hidden_size,
     hidden_act = "gelu",
     num_labels = 1L,
-    pretrained_model_name = pretrained_model_name
+    layer_norm_eps = layer_norm_eps,
+    batch_size = batch_size,
+    pretraining_ratio = pretraining_ratio,
+    verbose = verbose,
+    device = device
   )
 
 

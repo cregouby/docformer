@@ -17,11 +17,13 @@ Apply tesseract::ocr_data() and clean result.
 }
 \examples{
 # good quality scan
-df <- apply_ocr(image1)
+image <- system.file("2106.11539_1.png", package = "docformer")
+df <- apply_ocr(image)
 # poor quality scan
-df <- image2 \%>\% image_read() \%>\%
+library(magick)
+df <- image \%>\% image_read() \%>\%
    image_resize("2000x") \%>\%
-   image_trim(fuzz=40) \%>\%
-   image_write(format='png', density="300x300") \%>\%
+   image_trim(fuzz = 40) \%>\%
+   image_write(format = 'png', density = "300x300") \%>\%
    apply_ocr()
 }

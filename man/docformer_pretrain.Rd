@@ -36,7 +36,7 @@ docformer_pretrain(
 \item{weights}{weights}
 }
 \value{
-
+a docformer
 }
 \description{
 Docformer Self-supervised training task

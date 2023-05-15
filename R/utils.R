@@ -23,7 +23,7 @@ NULL
 #'   they're cached? This is not currently exposed to the end user, and exists
 #' @param timeout the download timeout
 #'
-#' @return
+#' @return path of the cached file
 #' @export
 #'
 #' @examples
@@ -36,7 +36,7 @@ download_and_cache <- function(url, redownload = FALSE, timeout = 720) {
   fs::dir_create(cache_path)
   path <- file.path(cache_path, fs::path_file(url))
 
-  if (!file.exists(path) | redownload) {
+  if (!file.exists(path) || redownload) {
     withr::with_options(
       list(timeout = timeout),
       utils::download.file(url, path, mode = "wb")
@@ -46,18 +46,18 @@ download_and_cache <- function(url, redownload = FALSE, timeout = 720) {
 }
 
 
-#' Download and Cache Weights (the torchtransformer way)
-#'
-#' Download weights for this model to the torchtransformers cache, or load them
-#' if they're already downloaded.
-#'
-#' @param model_name the name of the model to download or the local file
-#' @param redownload Logical; should the weights be downloaded fresh even if
-#'   they're cached? This is not currently exposed to the end user, and exists
-#' @param timeout Optional timeout in seconds for large file download.
-#'
-#' @return The parsed weights as a named list.
-#' @keywords internal
+# Download and Cache Weights (the torchtransformer way)
+#
+# Download weights for this model to the torchtransformers cache, or load them
+# if they're already downloaded.
+#
+# @param model_name the name of the model to download or the local file
+# @param redownload Logical; should the weights be downloaded fresh even if
+#   they're cached? This is not currently exposed to the end user, and exists
+# @param timeout Optional timeout in seconds for large file download.
+#
+# @return The parsed weights as a named list.
+# @keywords internal
 NULL
 # .download_weights <- function(model_name = "microsoft/layoutlm-base-uncased",
 #                               redownload = FALSE, timeout = 720) {
@@ -114,8 +114,8 @@ NULL
   # sd <- .download_weights(model_name = model_name, redownload = redownload)
   # This will usually just fetch from the cache (torchvision way)
   if (!file.exists(model_name)) {
-    url <- transformers_config[transformers_config$model_name==model_name,]$url
-    temp_file <- download_and_cache(url = url, redownload = redownload, timeout = timeout )
+    url <- transformers_config[transformers_config$model_name == model_name, ]$url
+    temp_file <- download_and_cache(url = url, redownload = redownload, timeout = timeout)
   } else {
     temp_file <- model_name
   }
@@ -133,10 +133,43 @@ NULL
   model$load_state_dict(local_sd)
 }
 
-
-.prune_head <- function(model) {
-  pruned_model <- torch::nn_sequential(!!!model$children[1:(length(model$children)-2)])
-  return(pruned_model)
+element_size <- function(dtype) {
+  dplyr::case_when(dtype=="Double" ~ 64,
+                   dtype=="Float" ~ 32,
+                   dtype=="Half" ~ 16,
+                   dtype=="Long" ~ 64,
+                   dtype=="Int" ~ 32,
+                   dtype=="Short" ~ 16,
+                   dtype=="Byte" ~ 8,
+                   dtype=="Bool" ~ 1)
 }
 
+#' @export
+torch_obj_size <- function(obj) {
+  UseMethod("torch_obj_size")
+}
+
+#' @export
+torch_obj_size.default <- function(obj) {
+  rlang::abort(paste0(obj, " is not recognized as a supported object type"))
+}
+
+#' @export
+torch_obj_size.torch_tensor <- function(obj) {
+  dtype <- as.character(obj$dtype)
+  size <- prod(obj$shape)
+  return(lobstr:::new_bytes(size * element_size(dtype)))
+}
+
+#' @export
+torch_obj_size.nn_module <- function(obj) {
+  dtype <- as.character(obj$parameters[[1]]$dtype)
+  size <- torch:::get_parameter_count(obj)
+  return(lobstr:::new_bytes(size * element_size(dtype)))
+}
+
+#' @export
+torch_obj_size.docformer_tensor <- function(obj) {
+  purrr::map(obj, torch_obj_size)
+}
 

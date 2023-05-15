@@ -9,9 +9,6 @@ read_featureRDS(file)
 \arguments{
 \item{file}{: source file}
 }
-\value{
-
-}
 \description{
 Load feature tensor from disk
 }
