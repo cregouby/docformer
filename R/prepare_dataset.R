@@ -756,7 +756,7 @@ mask_for_tdi <- function(encoding_lst) {
   batch <- encoding_lst$image$shape[[1]]
   # a rbernoulli equivalent with probability p = 0.2 to mask images
   is_image_masked <- runif(batch) > (1 - 0.2)
-  if (sum(is_image_masked) > 0 & sum(is_image_masked) < batch) {
+  if (sum(is_image_masked) > 0 && sum(is_image_masked) < batch) {
     # few images to replace, we replace masked image by random not-masked image ids
     randomized_image <- sample(which(!is_image_masked), size = batch, replace = T)
     masked_image_id <- (seq_len(batch) * !is_image_masked) + (randomized_image * is_image_masked)
@@ -767,7 +767,7 @@ mask_for_tdi <- function(encoding_lst) {
     # no image to replace
     encoding_lst$image_mask <- rep(FALSE, batch)
   } else {
-    # all images need replacement
+    # all images need replacement so we roll on the index dimension
     encoding_lst$image <- encoding_lst$image$roll(1,1)
     encoding_lst$image_mask <- rep(TRUE, batch)
   }

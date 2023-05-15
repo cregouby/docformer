@@ -1,4 +1,3 @@
-# inspired by ?? need rework
 docformer_mlm <- torch::nn_module(
   "docformer_mlm",
   initialize = function(config, lr = 5e-5, mask_id) {
