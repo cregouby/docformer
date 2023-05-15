@@ -754,12 +754,22 @@ mask_for_ltr <- function(encoding_lst) {
 mask_for_tdi <- function(encoding_lst) {
   # sample 20 % of the batch
   batch <- encoding_lst$image$shape[[1]]
-  # a rbernoulli equivalent with probability p = 0.2
+  # a rbernoulli equivalent with probability p = 0.2 to mask images
   is_image_masked <- runif(batch) > (1 - 0.2)
-  randomized_image <- sample(which(!is_image_masked), size = batch, replace = T)
-  masked_image_id <- (seq_len(batch) * !is_image_masked) + (randomized_image * is_image_masked)
-  # permute switched image with other images from the batch
-  encoding_lst$image <- encoding_lst$image[masked_image_id,,,]
-  encoding_lst$image_mask <- is_image_masked
+  if (sum(is_image_masked) > 0 & sum(is_image_masked) < batch) {
+    # few images to replace, we replace masked image by random not-masked image ids
+    randomized_image <- sample(which(!is_image_masked), size = batch, replace = T)
+    masked_image_id <- (seq_len(batch) * !is_image_masked) + (randomized_image * is_image_masked)
+    # permute switched image with other images from the batch
+    encoding_lst$image <- encoding_lst$image[masked_image_id,,,]
+    encoding_lst$image_mask <- is_image_masked
+  } else if (sum(is_image_masked) == 0) {
+    # no image to replace
+    encoding_lst$image_mask <- rep(FALSE, batch)
+  } else {
+    # all images need replacement
+    encoding_lst$image <- encoding_lst$image$roll(1,1)
+    encoding_lst$image_mask <- rep(TRUE, batch)
+  }
   return(encoding_lst)
 }

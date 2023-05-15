@@ -1,4 +1,4 @@
-test_that("docformer_for_masked_lm unitary functions work", {
+test_that("docformer_for_masked_lm unitary functions works", {
   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
   docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask))
   embedding <- docformer_net$docformer(mask_for_mm_mlm(doc_tt, .mask_id(bpe_tok_mask)))
@@ -18,18 +18,24 @@ test_that("docformer_for_masked_lm unitary functions work", {
 
 })
 
-test_that("docformer_for_masked_lm on non default design raise an exception", {
+test_that("docformer_for_masked_lm on non-default design raise an exception", {
   config  <-  docformer_config(pretrained_model_name = "hf-internal-testing/tiny-layoutlm")
   expect_error(docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask)),
                "hidden_size"
   )
 })
 
-test_that("docformer_for_masked_lm work", {
+test_that("docformer_for_masked_lm works", {
+  skip_on_os(os = c("windows", "mac", "solaris"))
   config  <-  docformer_config(pretrained_model_name = "allenai/hvila-row-layoutlm-finetuned-docbank")
+  # tic()
   docformer_net <- docformer:::docformer_for_masked_lm(config, .mask_id(bpe_tok_mask))
-
-  expect_no_error(result <- docformer_net(doc_tt))
+  # toc() # 29s
+  expect_no_error(
+    # tic()
+    result <- docformer_net(doc_tt)
+    # toc() # 234s
+  )
   expect_tensor_dtype(result$loss, "Float")
 
 })

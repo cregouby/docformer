@@ -77,7 +77,7 @@ tdi_head <- torch::nn_module(
     )
   },
   forward = function(x) {
-    # classify "does_text_describe_image" from CLS embedding
+    # classify "does_text_describe_image ?" from CLS embedding
     self$tdi_classifier(x[,1,])
   }
 )
@@ -106,14 +106,14 @@ docformer_for_masked_lm <- torch::nn_module(
     masked_embedding <- self$docformer(masked_x)
     # compute masked sequence embedding loss
     mm_mlm_loss <- self$mlm_loss(
-      (self$mm_mlm(masked_embedding) %>% self$mlm_sigmoid())$movedim(1,2),
+      (self$mm_mlm(masked_embedding) %>% self$mlm_sigmoid())$movedim(2,3),
       (x$text + 1L)$squeeze(3)$to(torch::torch_long())
     )
     #  compute Learn To Reconstruct (LTR) the image and loss on images not masked by TDI
     ltr <- self$ltr(embedding)
     ltr_loss <- self$ltr_loss(
-      torch::nnf_interpolate(ltr, x$image$shape[3:4]) * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1),
-      x$image * torch_tensor(!masked_x$image_mask)$reshape(-1,1,1,1)
+      torch::nnf_interpolate(ltr, x$image$shape[3:4])[!masked_x$image_mask,,,],
+      x$image[!masked_x$image_mask,,,]
     )
     # compute Text Describes Image (TDI) loss
     tdi <- self$tdi(masked_embedding)
@@ -121,7 +121,7 @@ docformer_for_masked_lm <- torch::nn_module(
     masked_lm_loss <- (
       5 * mm_mlm_loss +
       ltr_loss +
-      5 * self$tdi_loss(tdi, masked_x$image_mask)
+      5 * self$tdi_loss(tdi, torch::torch_tensor(masked_x$image_mask)$to(torch::torch_float())$unsqueeze(2))
     )
 
     # TODO extract other piggyback values see layoutlm_network.R @856
