@@ -126,7 +126,7 @@ docformer_for_masked_lm <- torch::nn_module(
 
     # TODO extract other piggyback values see layoutlm_network.R @856
     result <- list(
-      loss = masked_lm_loss,
+      loss = masked_lm_loss
       # hidden_states = embedding$hidden_states,
       # attentions = embedding$attentions
     )
