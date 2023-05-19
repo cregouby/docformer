@@ -4,10 +4,10 @@
 \alias{save_featureRDS}
 \title{Save feature tensor to disk}
 \usage{
-save_featureRDS(encoding_lst, file)
+save_featureRDS(docformer_tensor, file)
 }
 \arguments{
-\item{encoding_lst}{: the feature tensor list to save}
+\item{docformer_tensor}{: the \code{docformer_tensor} tensor list to save}
 
 \item{file}{: destination file}
 }

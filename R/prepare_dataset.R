@@ -266,6 +266,12 @@ apply_ocr <- function(image) {
 
 }
 
+#' @param filepath
+#'
+#' @param config
+#'
+#' @rdname create_features
+#'
 create_feature <- function(filepath, config) {
   if (fs::is_dir(filepath)) {
     filepath <- list.files(filepath)
@@ -291,18 +297,23 @@ create_feature <- function(filepath, config) {
 
   # coro loop on files
 }
-#' Turn image into docformer torch tensor input feature
+#' Turn content into docformer torch tensor input feature
 #'
 #' @param image file path, url, or raw vector to image (png, tiff, jpeg, etc)
 #' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
 #'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
-#' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
+#' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding,
+#'  in case of single page content
 #' @param target_geometry image target magik geometry expected by the image model input
 #' @param max_seq_len size of the embedding vector in tokens
 #' @param debugging additionnal feature for debugging purposes
 #'
-#' @return a list of named tensors
+#' @return a `docformer_tensor`, a list of the named tensors encoding the document feature,
+#'   as expected as input to docformer_ network. Tensors are
+#'  "x_features", "y_features", "text", image" and "mask",
+#'  first dimension of each tensor beeing the page of the document.
 #' @export
+#' @rdname create_features
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
@@ -407,33 +418,23 @@ create_features_from_image <- function(image,
   encoding_lst
 
 }
-#' Turn document into docformer torch tensor input feature
-#'
 #' @param doc file path, url, or raw vector to document (currently pdf only)
-#' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
-#'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
-#' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
-#' @param target_geometry image target magik geometry expected by the image model input
-#' @param max_seq_len size of the embedding vector in tokens
-#' @param save_to_disk (boolean) shall we save the result onto disk
-#' @param path_to_save result path
-#' @param extras_for_debugging additionnal feature for debugging purposes
 #'
-#' @return a list of named tensors
 #' @export
+#' @rdname create_features
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
 #' sent_tok <- sentencepiece::sentencepiece_load_model(
 #'    system.file(package = "sentencepiece", "models/nl-fr-dekamer.model")
 #'    )
-#' sent_tok$vocab_size <- sent_tok$vocab_size+1L
+#' sent_tok$vocab_size <- sent_tok$vocab_size+2L
 #' sent_tok$vocabulary <- rbind(
 #'   sent_tok$vocabulary,
-#'   data.frame(id = sent_tok$vocab_size, subword = "<mask>")
+#'   data.frame(id = c(sent_tok$vocab_size - 1, sent_tok$vocab_size), subword = c("<mask>", "<pad>"))
 #'   )
 #' # turn pdf into feature
-#' doc <- system.file(package = "docformer", "inst", "2106.11539_1_2.pdf")
+#' doc <- system.file(package = "docformer", "2106.11539_1_2.pdf")
 #' doc_tt <- create_features_from_doc(doc, tokenizer = sent_tok)
 #'
 create_features_from_doc <- function(doc,
@@ -441,7 +442,7 @@ create_features_from_doc <- function(doc,
                                      add_batch_dim = TRUE,
                                      target_geometry = "384x500",
                                      max_seq_len = 512,
-                                     extras_for_debugging = FALSE) {
+                                     debugging = FALSE) {
   # step 0 prepare utilities datasets
   # mask_id <- .mask_id(tokenizer)
   pad_id <- .pad_id(tokenizer)
@@ -537,20 +538,12 @@ create_features_from_doc <- function(doc,
   encoding_lst
 
 }
-#' Turn DocBanks dataset into docformer torch tensor input feature
-#'
 #' @param text_path file path or filenames to DocBank_500K_txt
 #' @param image_path file path or filenames to the matching DocBank_500K_ori_img
-#' @param tokenizer tokenizer function to apply to words extracted from image. Currently,
-#'   {hftokenizers}, {tokenizer.bpe} and {sentencepiece} tokenizer are supported.
-#' @param add_batch_dim (boolean) add a extra dimension to tensor for batch encoding
-#' @param target_geometry image target magik geometry expected by the image model input
-#' @param max_seq_len size of the embedding vector in tokens
 #' @param batch_size number of images to process
-#' @param extras_for_debugging additionnal feature for debugging purposes
 #'
-#' @return a list of named tensors
 #' @export
+#' @rdname create_features
 #'
 #' @examples
 #' # load a tokenizer with <mask> encoding capability
@@ -574,7 +567,7 @@ create_features_from_docbank <- function(text_path,
                                          target_geometry = "384x500",
                                          max_seq_len = 512,
                                          batch_size = 1000,
-                                         extras_for_debugging = FALSE) {
+                                         debugging = FALSE) {
   # step 0 prepare utilities datasets
   # mask_id <- .mask_id(tokenizer)
   pad_id <- .pad_id(tokenizer)
@@ -690,13 +683,14 @@ create_features_from_docbank <- function(text_path,
 }
 #' Save feature tensor to disk
 #'
-#' @param encoding_lst : the feature tensor list to save
+#' @param docformer_tensor : the `docformer_tensor` tensor list to save
 #' @param file : destination file
 #'
 #' @export
-save_featureRDS <- function(encoding_lst, file) {
+save_featureRDS <- function(docformer_tensor, file) {
+  stopifnot("This is not a docformer_tensor" = inherits(docformer_tensor, "docformer_tensor"))
   # step 15: save to disk
-  saveRDS(purrr::map(encoding_lst, ~.x$to(device = "cpu") %>% as.array), file = file)
+  saveRDS(purrr::map(docformer_tensor, ~.x$to(device = "cpu") %>% as.array), file = file)
 }
 
 #' Load feature tensor from disk
@@ -710,6 +704,8 @@ read_featureRDS <- function(file) {
   encoding_lst[1:3] <- encoding_lst[1:3] %>% purrr::map(~torch::torch_tensor(.x,dtype = torch::torch_int()))
   encoding_lst[[4]] <- torch::torch_tensor(encoding_lst[[4]],dtype = torch::torch_uint8())
   encoding_lst[[5]] <- torch::torch_tensor(encoding_lst[[5]],dtype = torch::torch_bool())
+  class(encoding_lst) <- "docformer_tensor"
+  attr(encoding_lst, "max_seq_len") <- encoding_lst$text$shape[[2]]
   encoding_lst
 }
 
