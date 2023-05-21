@@ -132,5 +132,8 @@ docformer_for_masked_lm <- torch::nn_module(
     )
     class(result) <- "MaskedLMOutput"
     return(result)
+  },
+  loss = function(input, ...) {
+    input$loss
   }
 )

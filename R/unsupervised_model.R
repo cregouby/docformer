@@ -1,74 +1,59 @@
-docformer_mlm <- torch::nn_module(
-  "docformer_mlm",
-  initialize = function(config, lr = 5e-5, mask_id) {
-    self$save_hyperparameters()
-    self$docformer <- docformer_for_masked_lm(config, mask_id)
-  },
-  forward = function(x) {
-    self$docformer(x)
-  },
-  training_step = function(batch, batch_idx) {
-    logits <-  self$forward(batch)
-    criterion <- unsupervised_loss()
-    loss  <-  criterion(logits$transpose(2, 1), batch["mlm_labels"]$long())
-    self$log("train_loss", loss, prog_bar = TRUE)
-
-  },
-  validation_step = function(batch, batch_idx) {
-    logits  <-  self$forward(batch)
-    criterion_mm_mlm <- torch$nn$CrossEntropyLoss()
-    # TODO
-    criterion_ltr <- torch$nn$SmoothedL1Loss()
-    # TODO
-    criterion_tdi <- torch$nn$CrossEntropyLoss()
-    loss <- criterion_mm_mlm(logits$transpose(2, 1), batch["mlm_labels"]$long())
-    val_acc <- 100 * (torch$argmax(logits, dim = -1) == batch["mlm_labels"]$long())$float()$sum() / (logits$shape[1] * logits$shape[2])
-    val_acc <- torch$tensor(val_acc)
-    self$log("val_loss", loss, prog_bar = TRUE)
-    self$log("val_acc", val_acc, prog_bar = TRUE)
-  },
-  configure_optinizer = function() {
-    torch::optim_adam(self$parameters(), lr = self$hparams["lr"])
-  }
-)
-
-#' Docformer Self-supervised training task
+#' Docformer Self-supervised training module
 #'
-#' @param config config
-#' @param train_dataloader training dataloader to use
-#' @param val_dataloader validation dataloader to use
-#' @param device "cpu" or "cuda" default to "auto"
-#' @param epochs number of epoch to train
-#' @param path path
-#' @param classes number of classes
-#' @param lr learning-rate
-#' @param weights weights
+#' @param ... Additional parameters passed to [docformer_config()].
 #'
-#' @return a docformer
+#' @describeIn docformer Pretraining module
+#' @returns
+#' A `luz_module` that has been setup and is ready to be `fitted`.
+#'
+#' @seealso [fit.luz_module_generator()] for fit arguments. See
+#'   [predict.docformer_result()] for information on how to generate predictions.
+#'
 #' @export
-#'
-docformer_pretrain <- function(config, train_dataloader, val_dataloader, device, epochs, path, classes, lr = 5e-5, weights = weights) {
+docformer_pretrain <- function(..., mask_id = 0) {
 
+  config <- docformer_config(...)
+
+  module <- docformer_for_masked_lm %>%
+    luz::setup(
+      optimizer = optim_adam
+      # metrics = list(
+      #   self$mlm_loss,
+      #   self$ltr_loss,
+      #   self$tdi_loss
+      # )
+    ) %>%
+    luz::set_hparams(
+      pretrained_model_name = config$pretrained_model_name,
+      coordinate_size = config$coordinate_size,
+      hidden_size = config$hidden_size,
+      max_position_embeddings = config$max_position_embeddings,
+      num_quantiles = 3,
+      num_attention_heads = config$num_attention_heads,
+      num_hidden_layers = config$num_hidden_layers
+    ) %>%
+    luz::set_opt_hparams(
+      pretraining_ratio = config$pretraining_ratio
+    )
+
+  attr(module, "module")$spec <- spec
+  class(module) <- c("docformer_module", class(module))
+  module
 }
 
-# random_mlm_obfuscator <- torch::nn_module(
-#   "random_obfuscator",
-#   initialize = function(pretraining_ratio) {
-#
-#     if (pretraining_ratio <= 0 || pretraining_ratio >= 1) {
-#       pretraining_ratio <- 0.15
-#     }
-#
-#     self$pretraining_ratio <- pretraining_ratio
-#
-#   },
-#   forward = function(text, x_feature) {
-#     # workaround while torch_bernoulli is not available in CUDA
-#     ones <- torch::torch_ones_like(text, device="cpu")
-#     obfuscated_x <- torch::torch_bernoulli(self$pretraining_ratio * ones)
-#     masked_input <- torch::torch_mul(obfuscated_x, x_feature)$to("cpu") %>% as_array
-#
-#     list(masked_input, obfuscated_vars)
-#
-#   }
-# )
+#' Fit the Temporal Fusion Transformer module
+#'
+#' @param object a TFT module created with [temporal_fusion_transformer()].
+#' @param ... Arguments passed to [luz::fit.luz_module_generator()].
+#'
+#' @export
+fit.docformer_module <- function(object, ...) {
+  out <- NextMethod()
+  class(out) <- c("docformer_result", class(out))
+  out$spec <- attr(object, "module")$spec #preserve the spec in the result.
+
+  # serialize the model, so saveRDS also works
+  out$.serialized <- model_to_raw(out)
+
+  out
+}
