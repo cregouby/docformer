@@ -15,6 +15,14 @@ NULL
 #' @importFrom rlang as_function %||% set_names global_env is_true is_logical
 NULL
 
+#' Fit a model
+#' See [generics::fit()] for more information.
+#' @keywords internal
+#' @rdname fit
+#' @name fit
+#' @importFrom generics fit
+#' @export
+NULL
 
 #' Download and Cache Weights (the torchvision way)
 #'

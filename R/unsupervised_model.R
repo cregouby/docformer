@@ -24,16 +24,8 @@ docformer_pretrain <- function(..., mask_id = 0) {
       # )
     ) %>%
     luz::set_hparams(
-      pretrained_model_name = config$pretrained_model_name,
-      coordinate_size = config$coordinate_size,
-      hidden_size = config$hidden_size,
-      max_position_embeddings = config$max_position_embeddings,
-      num_quantiles = 3,
-      num_attention_heads = config$num_attention_heads,
-      num_hidden_layers = config$num_hidden_layers
-    ) %>%
-    luz::set_opt_hparams(
-      pretraining_ratio = config$pretraining_ratio
+      config = config,
+      mask_id = mask_id
     )
 
   attr(module, "module")$spec <- spec
